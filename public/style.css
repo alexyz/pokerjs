@@ -1,0 +1,108 @@
+body {
+	background-color: #eeeeee;
+	font-family: verdana, sans-serif;
+}
+
+.h {
+	color: #990000;
+}
+
+.c {
+	color: #009900;
+}
+
+.d {
+	color: #000099;
+}
+
+.s {
+	color: black;
+}
+
+table {
+	border-radius: 5px;
+	background-color: #ccffcc;
+	border-collapse: seperate;
+	border-spacing: 2px;
+	border: 1px solid #999999;
+}
+
+/* game selection */
+#game { }
+
+/* deck table */
+#deck { }
+
+/* board table */
+#board { }
+
+/* hands table */
+#hands { }
+
+/* table cell in deck table ( could use #deck .card ? ) */
+.deck { }
+.deck:hover {
+	background-color: #ff9999;
+}
+
+/* table cell in hand table ( could use #hands .card ? ) */
+.hand { }
+
+/** table row in board or hand table (could use #hands tr ? not with header row...) */
+.handrow { }
+
+/* table cell for hand value */
+.value { }
+
+/* table cell containing card */
+.card {
+	text-align: center;
+	vertical-align: middle;
+	width: 2.5em;
+	height: 2em;
+	padding: 2px;
+	background-color: white;
+	cursor: default;
+	border-radius: 5px;
+	border: 1px solid #cccccc;
+}
+
+.card :hover {
+	/*font-weight: bold;
+	font-style: italic;
+	border-color: black;
+	background-color: #ff9999;*/
+}
+
+/* selected table cell in deck */
+.selected {
+	background-color: #cccccc;
+}
+
+/** table cell representing out in deck */
+.out {
+	background-color: #99ff99;
+}
+
+/** selected table cell in hands */
+.current {
+	background-color: #9999ff;
+}
+
+.button {
+	border: 1px solid black;
+	background: lightgray;
+	padding: 5px;
+	cursor: default;
+}
+
+.buttons {
+	margin: 5px;
+	padding: 5px;
+}
+
+/* table hand row error */
+.error {
+	background-color: darkorange;
+	/*border: 1px solid red;*/
+}

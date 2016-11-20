@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>poker equity js</title>
+	<!--script src="jquery.js" type="text/javascript"></script>
+	<script src="jquery-ui.js" type="text/javascript"></script>
+	<link href="jquery-ui.css" rel="stylesheet" type="text/css" /-->
+	<script src="https://code.jquery.com/jquery-3.1.1.min.js" type="text/javascript"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" type="text/javascript"></script>
+	<link href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" rel="stylesheet" type="text/css" />
+	<script src="poker.js"></script>
+	<link href="style.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+	<select id="game" name="game" >
+      <option value="he" selected="selected">Hold'em</option>
+      <option value="om">Omaha</option>
+	  <option value="hd">High Draw</option>
+	  <option value="ld">2-7 Low Draw</option>
+    </select>
+	<table id="deck">
+		<caption>deck</caption>
+		<tbody/>
+	</table>
+	<table id="board">
+		<caption>board</caption>
+		<tbody/>
+	</table>
+	<table id="hands">
+		<caption>hands</caption>
+		<tbody/>
+	</table>
+	<div class="buttons">
+		<button id="random">Random</button>
+		<button id="calc">Calculate</button>
+		<button id="clear">Clear</button>
+	</div>
+	<p><a href="https://github.com/alexyz/pokerjs">GitHub page</a></p>
+</body>
+</html>
