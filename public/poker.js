@@ -240,18 +240,18 @@
 		var c3 = faces[parseInt(v[3], 16)];
 		var c4 = faces[parseInt(v[4], 16)];
 		var c5 = faces[parseInt(v[5], 16)];
-		var rn = ranknames[r][1];
+		var name = ranknames[r][1];
 		switch (r) {
-			case ranks.highCard: return rn + " " + c1 + " - " + c2 + " " + c3 + " " + c4 + " " + c5;
-			case ranks.pair: return rn + " " + c1 + " - " + c2 + " " + c3 + " " + c4;
-			case ranks.twoPair: return rn + " " + c1 + " and " + c2 + " - " + c3;
-			case ranks.threeOfAKind: return rn + " " + c1 + " - " + c2 + " " + c3;
-			case ranks.straight: return rn + " " + c1;
-			case ranks.flush: return rn + " " + c1 + " - " + c2 + " " + c3 + " " + c4 + " " + c5;
-			case ranks.fullHouse: return rn + " " + c1 + " over " + c2;
-			case ranks.fourOfAKind: return rn + " " + c1 + " - " + c2;
-			case ranks.straightFlush: return rn + " " + c1;
-			case ranks.royalFlush: return rn;
+			case ranks.highCard: return name + " " + c1 + c2 + c3 + c4 + c5;
+			case ranks.pair: return name + " " + c1 + " - " + c2 + c3 + c4;
+			case ranks.twoPair: return name + " " + c1 + " and " + c2 + " - " + c3;
+			case ranks.threeOfAKind: return name + " " + c1 + " - " + c2 + c3;
+			case ranks.straight: return name + " " + c1;
+			case ranks.flush: return name + " " + c1 + c2 + c3 + c4 + c5;
+			case ranks.fullHouse: return name + " " + c1 + " over " + c2;
+			case ranks.fourOfAKind: return name + " " + c1 + " - " + c2;
+			case ranks.straightFlush: return name + " " + c1;
+			case ranks.royalFlush: return name;
 		}
 		throw "valueDesc " + v;
 	}
@@ -274,15 +274,15 @@
 	}
 
 	/** update the eqs with the simulation */
-	function runEqs (eqs, board, hands, df, vf) {
+	function runEqs (equities, board, hands, dealf, valuef) {
 		var c = 0;
 		var vals = [];
-		while (df.hasnext()) {
-			df.next(board, hands);
+		while (dealf.hasnext()) {
+			dealf.next(board, hands);
 			var max = "";
 			var maxc = 0;
 			for (var n = 0; n < hands.length; n++) {
-				var v = vf(board, hands[n]);
+				var v = valuef(board, hands[n]);
 				vals[n] = v;
 				if (v === max) {
 					maxc++;
@@ -295,19 +295,19 @@
 			for (var n = 0; n < hands.length; n++) {
 				if (vals[n] === max) {
 					if (maxc === 1) {
-						eqs[n].win++;
+						equities[n].win++;
 					} else {
-						eqs[n].tie++;
+						equities[n].tie++;
 					}
 					var r = rank(vals[n]);
-					var rc = eqs[n].winranks[r] || 0;
-					eqs[n].winranks[r] = rc+1;
+					var rc = equities[n].winranks[r] || 0;
+					equities[n].winranks[r] = rc+1;
 				}
 			}
 			c++;
 		}
 		for (var n = 0; n < hands.length; n++) {
-			eqs[n].count = c;
+			equities[n].count = c;
 		}
 	}
 
@@ -320,21 +320,21 @@
 	}
 
 	function drawEquity (board, hands, blockers, vf) {
-		console.log("dequity");
-		if (board || hands.length < 2) throw "dequity";
+		console.log("draw equity");
+		if (board || hands.length < 2) throw "dequity: board/hands";
 		var deck = remove(deckArr.slice(0), board, hands, blockers);
-		var hs = [];
-		var eqs = [];
-		var u = 0;
+		var hands2 = [];
+		var equities = [];
+		var unknown = 0;
 		for (var n = 0; n < hands.length; n++) {
-			eqs[n] = new Equity();
-			hs[n] = hands[n].slice(0);
-			u = u + (5 - hands[n].length);
+			equities[n] = new Equity(hands[n]);
+			hands2[n] = hands[n].slice(0);
+			unknown = unknown + (5 - hands[n].length);
 		}
 		// TODO u=1,2 exact draw
-		var df = u == 0 ? new FixedDraw() : new RandomDraw(deck, hands, 1000);
-		runEqs(eqs, board, hands, df, vf);
-		return eqs;
+		var df = unknown == 0 ? new FixedDraw() : new RandomDraw(deck, hands, 1000);
+		runEqs(equities, board, hands2, df, vf);
+		return equities;
 	}
 
 	function FixedDraw () {
@@ -366,6 +366,7 @@
 		var i = 0;
 		for (var n = 0; n < this.hands.length; n++) {
 			for (var n2 = this.hands[n].length; n2 < 5; n2++) {
+				// update parameter not field
 				hands[n][n2] = this.deck[i++];
 			}
 		}
@@ -488,6 +489,7 @@
 	};
 
 	function Equity (hand) {
+		if (!hand) throw "equity: no hand";
 		this.hand = hand;
 		this.count = 0;
 		this.win = 0;
@@ -502,7 +504,7 @@
 	}
 
 	function holdemEquityImpl (board, hands, bf, vf) {
-		console.log("he2 b=" + board + " h=" + hands);
+		console.log("holdemEquityImpl b=" + board + " h=" + hands);
 
 		var eqs = [];
 
@@ -646,7 +648,7 @@
 		}
 	};
 
-	function game () {
+	function getgame () {
 		var text = $("#game").find(":selected").val();
 		var g = games[text];
 		if (g) {
@@ -657,7 +659,7 @@
 
 	function gameAction (e, ui) {
 		console.log("game selected");
-		var g = game();
+		var g = getgame();
 
 		$(".deck").removeClass("selected");
 		$("#board tbody").empty();
@@ -667,7 +669,7 @@
 		}
 
 		$("#hands tbody").empty();
-		$("#hands tbody").append("<tr><th colspan=" + g.handMax + ">hand</th><th>value</th></tr>");
+		$("#hands tbody").append("<tr><th colspan=" + g.handMax + ">hand</th><th>win/tie</th><th>rank</th><th>info</th></tr>");
 		var ht = $("#hands").get(0);
 		for (var n = 0; n < 4; n++) {
 			addHand(ht, g.handMin, g.handMax, false);
@@ -677,27 +679,32 @@
 		$(ht).find(".hand").first().addClass("current");
 	}
 
-	function addHand (t, mins, maxs, isb) {
+	function addHand (t, mins, maxs, isboard) {
 		var tr = t.insertRow(-1);
 		$(tr).data("mins", mins);
 		$(tr).data("maxs", maxs);
-		$(tr).data("isb", isb);
+		$(tr).data("isb", isboard);
 		$(tr).addClass("handrow");
 		for (var n = 0; n < maxs; n++) {
 			var td = tr.insertCell(-1);
 			$(td).addClass("hand card");
-			// XXX don't create fn in loop
+			// don't create fn in loop
 			$(td).click(function(e) {
 				handtdclicked(e.currentTarget);
 			});
 		}
-		if (!isb) {
-			var td = tr.insertCell(-1);
-			$(td).addClass("value");
+		if (!isboard) {
+			var td1 = tr.insertCell(-1);
+			$(td1).addClass("win");
+			var td2 = tr.insertCell(-1);
+			$(td2).addClass("rank");
+			var td3 = tr.insertCell(-1);
+			$(td3).addClass("info");
 		}
 		return tr;
 	}
 
+	/* return function */
 	function rowFilter (hand) {
 		return function (i,e) {
 			//console.log("cf c=" + c + " data=" + $(this).data("card"));
@@ -727,7 +734,7 @@
 					h.push(c);
 				}
 			});
-			//console.log("mins=" + mins + " maxs=" + maxs + " isb=" + isb + " h=" + h);
+			console.log("mins=" + mins + " maxs=" + maxs + " isb=" + isb + " h=" + h);
 			if (isb || h.length > 0) {
 				// board can be length 0, otherwise must be at least mins
 				if ((isb && h.length === 0) || h.length >= mins) {
@@ -839,7 +846,7 @@
 		clearAction();
 		var players = randomInt(3) + 2; // XXX check hand rows/game
 		var deck = shuffle(deckArr.slice(0));
-		var g = game();
+		var g = getgame();
 		if (g.holdemBoard) {
 			var street = randomInt(4);
 			if (street > 0) {
@@ -866,32 +873,38 @@
 	}
 
 	function calcAction () {
+		console.log("calc action");
 		var hs = getcards();
 		console.log("hs=" + JSON.stringify(hs));
-		var g = game();
-		console.log("g=" + JSON.stringify(g));
-		var eqs = g.equityFunc(hs.board, hs.hands, hs.blockers, g.valueFunc);
-		console.log("o=" + JSON.stringify(eqs));
-		for (var n = 0; n < eqs.length; n++) {
-			var e = eqs[n];
+		var game = getgame();
+		console.log("g=" + JSON.stringify(game));
+		var equities = game.equityFunc(hs.board, hs.hands, hs.blockers, game.valueFunc);
+		console.log("o=" + JSON.stringify(equities));
+
+		for (var n = 0; n < equities.length; n++) {
+			var e = equities[n];
 			var r = "";
-			// TODO need to sort the winranks...
 			for (var k in e.winranks) {
 				if (r.length > 0) r += " ";
 				r += ranknames[k][0] + "(" + ((e.winranks[k]*100)/(e.win+e.tie)).toFixed(0) + "%)";
 			};
-			// TODO tooltip for long rank name/outs
-			var v = $(".handrow").filter(rowFilter(e.hand)).find(".value");
-			v.html(valueDesc(e.current) + " "
-			+ (e.best ? "\u{1F600} " : "") 
-			+ "win=" + ((100*e.win)/e.count).toFixed(0) + "% "
-			+ "tie=" + ((100*e.tie)/e.count).toFixed(0) + "% " 
-			+ ((((e.win+e.tie)/e.count) >= (1/eqs.length)) ? "\u{1F600} " : "")
-			+ r
-			+ ((e.outs.length > 0) ? " outs=" + e.outs.length + "/" + e.rem : ""));
+			var handrow = $(".handrow").filter(rowFilter(e.hand));
+			var wins = ((100*e.win)/e.count).toFixed(0) + "%";
+			var ties = ((100*e.tie)/e.count).toFixed(0) + "%";
+			var besteq = ((e.win+e.tie)/e.count) >= (1/equities.length);
+
+			var v1 = handrow.find(".win");
+			v1.html(wins + (e.tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+
+			var v2 = handrow.find(".rank");
+			v2.html(valueDesc(e.current) + (e.best ? " \u{1F600} " : ""));
+
+			var v3 = handrow.find(".info");
+			v3.html(r + ((e.outs.length > 0) ? " outs=" + e.outs.length + "/" + e.rem : ""));
+
 			// fuckin js...
 			(function(e){
-				v.hover(function(){
+				v3.hover(function(){
 					$(".deck").each(function(){
 						var t = $(this);
 						if (e.outs.indexOf(t.data("card")) >= 0) {

@@ -1,0 +1,47 @@
+todo
+
+draw doesn't give any outs
+draw should hide board
+draw - exact draw when 2 cards remaining
+draw doesn't give ranks with card missing
+low draw - info needs low hand names
+double click in hand should clear card
+change of hand card should clear calc
+recalc with blank hand doesn't remove old text
+recalc doesnt clear old out hovers (so should clear)
+should show 'outs' for best hand?
+disable text selection
+cookie to remember game
+keylistener for entering hands
+warn if jquery not available
+click instead of hover on outs for mobile
+get current/get best current - extract into seperate function (for stud)
+show trial count/if exact
+ability to add/remove hands
+ability to set blockers
+
+add these games
+omaha hilo
+stud/studhl/razz
+badugi
+
+hilo ideas
+meq [ eqs[3] ]
+hi only
+hi half
+low half
+for each board
+  he = hival(hand)
+  le = lowval(hand)
+if (anylow) {
+  // someone has a low
+  update hi half/low half
+} else {
+  update hi only
+}
+hi.wincount / hicount
+hihalf.wincount / hilocount
+lohalf.wincount / hilocount
+[a23]
+[aakq] - hi only
+[jj67] - (almost) low only
