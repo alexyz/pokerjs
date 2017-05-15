@@ -492,7 +492,9 @@
 		if (!hand) throw "equity: no hand";
 		this.hand = hand;
 		this.count = 0;
+		/** win count */
 		this.win = 0;
+		/** tie count */
 		this.tie = 0;
 		this.current = null;
 		this.winranks = {};
@@ -695,11 +697,11 @@
 		}
 		if (!isboard) {
 			var td1 = tr.insertCell(-1);
-			$(td1).addClass("win");
+			$(td1).addClass("win info");
 			var td2 = tr.insertCell(-1);
-			$(td2).addClass("rank");
+			$(td2).addClass("rank info");
 			var td3 = tr.insertCell(-1);
-			$(td3).addClass("info");
+			$(td3).addClass("value info");
 		}
 		return tr;
 	}
@@ -840,6 +842,13 @@
 		});
 		$(".deck").removeClass("selected");
 		$(".value").empty();
+		clearInfoAction();
+	}
+
+	function clearInfoAction () {
+		$("#hands").find(".info").each(function(i,e) {
+			$(e).html("");
+		})
 	}
 
 	function randomAction () {
@@ -881,6 +890,8 @@
 		var equities = game.equityFunc(hs.board, hs.hands, hs.blockers, game.valueFunc);
 		console.log("o=" + JSON.stringify(equities));
 
+		clearInfoAction();
+
 		for (var n = 0; n < equities.length; n++) {
 			var e = equities[n];
 			var r = "";
@@ -899,7 +910,7 @@
 			var v2 = handrow.find(".rank");
 			v2.html(valueDesc(e.current) + (e.best ? " \u{1F600} " : ""));
 
-			var v3 = handrow.find(".info");
+			var v3 = handrow.find(".value");
 			v3.html(r + ((e.outs.length > 0) ? " outs=" + e.outs.length + "/" + e.rem : ""));
 
 			// fuckin js...

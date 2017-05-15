@@ -1,5 +1,6 @@
 todo
 
+recalc doesnt clear old out hovers
 draw doesn't give any outs
 draw should hide board
 draw - exact draw when 2 cards remaining
@@ -8,7 +9,6 @@ low draw - info needs low hand names
 double click in hand should clear card
 change of hand card should clear calc
 recalc with blank hand doesn't remove old text
-recalc doesnt clear old out hovers (so should clear)
 should show 'outs' for best hand?
 disable text selection
 cookie to remember game
@@ -19,6 +19,7 @@ get current/get best current - extract into seperate function (for stud)
 show trial count/if exact
 ability to add/remove hands
 ability to set blockers
+
 
 add these games
 omaha hilo
