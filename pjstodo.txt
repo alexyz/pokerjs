@@ -31,6 +31,7 @@ meq [ eqs[3] ]
 hi only
 hi half
 low half
+
 for each board
   he = hival(hand)
   le = lowval(hand)

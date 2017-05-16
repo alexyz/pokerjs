@@ -61,15 +61,17 @@
 
 	var ranknames = {
 		"1": ["HC", "High Card"],
-		"2": ["PA", "Pair"],
+		"2": ["P", "Pair"],
 		"3": ["2P", "Two Pair"],
 		"4": ["3K", "Three of a Kind"],
-		"5": ["ST", "Straight"],
-		"6": ["FL", "Flush"],
+		"5": ["S", "Straight"],
+		"6": ["F", "Flush"],
 		"7": ["FH", "Full House"],
 		"8": ["4K", "Four of a Kind"],
 		"9": ["SF", "Straight Flush"],
-		"a": ["RF", "Royal Flush"]
+		"a": ["RF", "Royal Flush"],
+		"e": ["af", "A-5 Low"],
+		"f": ["ds", "2-7 Low"]
 	};
 
 	function isLow (v) {
@@ -79,12 +81,13 @@
 
 	function rank (v) {
 		if (isLow(v)) {
-			v = invert(v.substring(1));
+			v = inverseValue(v.substring(1));
 		}
 		return v[0];
 	}
 
-	function invert (v) {
+	/** convert high value to low value (sort of 0-value) */
+	function inverseValue (v) {
 		var x = "";
 		for (var n = 0; n < v.length; n++) {
 			x += (15 - parseInt(v[n], 16)).toString(16);
@@ -96,17 +99,28 @@
 	function dsLowValue (hand) {
 		var v = value(hand);
 		if (v == "95") {
-			// convert 5-high sf to a5432-high flush
+			// convert 5-high straight flush to a5432-high flush
 			v = "6e5432";
 		} else if (v == "55") {
-			// convert 5-high s to a5432-high
+			// convert 5-high straight to a5432-high
 			v = "1e5432";
 		}
-		return "f" + invert(v);
+		return "f" + inverseValue(v);
 	}
 
-	/** hi value */
-	function value (hand) {
+	/** 8 or better low value (null for no low) */
+	function afLowValue (hand) {
+		validateHand(hand);
+		var v = pairValue(hand);
+		if (v[0] === ranks.highCard && parseInt(v[1],16) <= 8) {
+			return "e" + inverseValue(v);
+		} else {
+			return null;
+		}
+	}
+
+	/** throw exception if hand is not 5 unique cards */
+	function validateHand (hand) {
 		if (hand.length !== 5) {
 			throw "value " + hand;
 		}
@@ -120,6 +134,11 @@
 				}
 			}
 		}
+	}
+
+	/** hi value */
+	function value (hand) {
+		validateHand(hand);
 		var v = pairValue(hand);
 		if (v[0] === ranks.highCard) {
 			var f = isFlush(hand);
@@ -151,6 +170,7 @@
 		return true;
 	}
 
+	/** return pair/high card value */
 	function pairValue (hand) {
 		var a = [];
 		for (var n = 0; n < hand.length; n++) {
@@ -229,10 +249,10 @@
 
 	function valueDesc (v) {
 		if (!v) {
-			return "?";
+			return "";
 		}
 		if (isLow(v)) {
-			v = invert(v.substring(1));
+			v = inverseValue(v.substring(1));
 		}
 		var r = v[0];
 		var c1 = faces[parseInt(v[1], 16)];
@@ -274,40 +294,71 @@
 	}
 
 	/** update the eqs with the simulation */
-	function runEqs (equities, board, hands, dealf, valuef) {
-		var c = 0;
-		var vals = [];
+	function runEqs (hlequities, board, hands, dealf, hvaluef, lvaluef) {
+		var count = 0;
+		var hvals = [], lvals = [];
+
 		while (dealf.hasnext()) {
+			// deal a new board
 			dealf.next(board, hands);
-			var max = "";
-			var maxc = 0;
+			count++;
+
+			var hmax = "", lmax = "";
+			var hmaxcount = 0, lmaxcount = 0;
+
 			for (var n = 0; n < hands.length; n++) {
-				var v = valuef(board, hands[n]);
-				vals[n] = v;
-				if (v === max) {
-					maxc++;
-				} else if (v > max) {
-					maxc = 1;
-					max = v;
+				var hv = hvaluef(board, hands[n]);
+				hvals[n] = hv;
+				if (hv === hmax) {
+					hmaxcount++;
+				} else if (hv > hmax) {
+					hmaxcount = 1;
+					hmax = hv;
+				}
+				if (lvaluef) {
+					var lv = lvaluef(board, hands[n]);
+					lvals[n] = lv;
+					if (lv === lmax) {
+						lmaxcount++;
+					} else if (lv > lmax) {
+						lmaxcount = 1;
+						lmax = v;
+					}
 				}
 			}
+
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
-				if (vals[n] === max) {
-					if (maxc === 1) {
-						equities[n].win++;
+				// if anyone got low, update the high half only
+				var he = lmaxcount == 0 ? hlequities[n].high : hlequities[n].highhalf;
+				var le = hlequities[n].lowhalf;
+
+				if (hvals[n] === hmax) {
+					if (hmaxcount === 1) {
+						he.win++;
 					} else {
-						equities[n].tie++;
+						he.tie++;
 					}
-					var r = rank(vals[n]);
-					var rc = equities[n].winranks[r] || 0;
-					equities[n].winranks[r] = rc+1;
+					var r = rank(hmax);
+					var rc = he.winranks[r] || 0;
+					he.winranks[r] = rc+1;
+				}
+
+				if (lmaxcount > 0 && lvals[n] == lmax) {
+					if (lmaxcount === 1) {
+						le.win++;
+					} else {
+						le.tie++;
+					}
+					// don't bother with winranks for low
+				}
+
+				// update count (currently on equity)
+				he.count = count;
+				if (lmaxcount > 0) {
+					le.count = count;
 				}
 			}
-			c++;
-		}
-		for (var n = 0; n < hands.length; n++) {
-			equities[n].count = c;
 		}
 	}
 
@@ -375,23 +426,23 @@
 	};
 
 	/** holdem and omaha equity */
-	function holdemEquity (board, hands, blockers, vf) {
-		console.log("heequity");
+	function holdemEquity (board, hands, blockers, game) {
+		console.log("holdem equity");
 		if (hands.length == 0 || (board.length > 0 && (board.length < 3 || board.length > 5))) throw "heequity";
 		var deck = remove(deckArr.slice(0), board, hands, blockers);
-		var bf;
+		var dealf;
 		if (board.length == 0) {
-			bf = new RandomBoard(deck, 1000);
+			dealf = new RandomBoard(deck, 1000);
 		} else if (board.length == 5) {
-			bf = new FixedBoard();
+			dealf = new FixedBoard();
 		} else if (board.length == 3) {
-			bf = new Board3(deck);
+			dealf = new Board3(deck);
 		} else if (board.length == 4) {
-			bf = new Board4(deck);
+			dealf = new Board4(deck);
 		} else {
-			throw "heequity";
+			throw "he";
 		}
-		return holdemEquityImpl(board, hands, bf, vf);
+		return holdemEquityImpl(board, hands, dealf, game.valueFunc, game.lowValueFunc);
 	}
 
 	function RandomBoard (deck, max) {
@@ -488,81 +539,120 @@
 		return board[4];
 	};
 
-	function Equity (hand) {
+	function HLEquity (hand) {
 		if (!hand) throw "equity: no hand";
 		this.hand = hand;
-		this.count = 0;
-		/** win count */
-		this.win = 0;
-		/** tie count */
-		this.tie = 0;
-		this.current = null;
-		this.winranks = {};
+		this.high = new Equity();
+		this.highhalf = new Equity();
+		this.lowhalf = new Equity();
 		this.exact = null;
-		this.best = false;
-		this.outs = [];
 		// cards remaining in deck
 		this.rem = 0;
 	}
 
-	function holdemEquityImpl (board, hands, bf, vf) {
-		console.log("holdemEquityImpl b=" + board + " h=" + hands);
+	function Equity () {
+		this.current = null;
+		this.count = 0;
+		this.win = 0;
+		this.tie = 0;
+		this.winranks = {};
+		this.best = false;
+		this.outs = [];
+	}
 
-		var eqs = [];
+	/** calculate high/low holdem/omaha equity, returns array of HLEquity */
+	function holdemEquityImpl (board, hands, dealf, hvaluef, lvaluef) {
+		console.log("holdemEquityImpl b=" + board + " h=" + hands + " df=" + dealf + " hv=" + hvaluef + " lv=" + lvaluef);
+
+		var hleqs = [];
 
 		// get current values, create equity objects
-		var max = "";
+		var hmax = "", lmax = "";
 		for (var n = 0; n < hands.length; n++) {
-			var e = new Equity(hands[n]);
-			e.exact = bf.exact;
-			e.rem = bf.deck ? bf.deck.length : 0;
+			var hle = new HLEquity(hands[n]);
+			hle.exact = dealf.exact;
+			hle.rem = dealf.deck ? dealf.deck.length : 0;
 			if (board.length >= 3) {
-				var v = vf(board, hands[n]);
-				if (v > max) {
-					max = v;
+				var hv = hvaluef(board, hands[n]);
+				if (hv > hmax) {
+					hmax = hv;
 				}
-				e.current = v;
+				hle.high.current = hv;
+				if (lvaluef) {
+					var lv = lvaluef(board, hands[n]);
+					if (lv > lmax) {
+						lmax = lv;
+					}
+					hle.lowhalf.current = lv;
+				}
 			}
-			eqs[n] = e;
+			hleqs[n] = hle;
 		}
 
 		// get best current
 		for (var n = 0; n < hands.length; n++) {
-			var e = eqs[n];
-			if (e.current === max) {
-				e.best = true;
+			var hle = hleqs[n];
+			// always on high not highhalf
+			if (hle.high.current === hmax) {
+				hle.high.best = true;
+			}
+			if (hle.lowhalf.current && hle.lowhalf.current === lmax) {
+				hle.lowhalf.best = true;
 			}
 		}
 
 		var b = board.slice(0);
-		var vals = [];
+		var hvals = [], lvals = [];
 
 		// get the outs for next street only
-		while (bf.outs && bf.hasouts()) {
-			var c = bf.nextout(b);
-			var max = "";
+		while (dealf.outs && dealf.hasouts()) {
+			// apply out to board
+			var c = dealf.nextout(b);
+
+			// get new value
+			var hmax = null, lmax = null;
 			for (var n = 0; n < hands.length; n++) {
-				var v = vf(b, hands[n]);
-				vals[n] = v;
-				if (v > max) {
-					max = v;
+				var hv = hvaluef(b, hands[n]);
+				hvals[n] = hv;
+				if (!hmax || hv > hmax) {
+					hmax = hv;
+				}
+				if (lvaluef) {
+					var lv = lvaluef(b, hands[n]);
+					lvals[n] = lv;
+					if (!lmax || lv > lmax) {
+						lmax = lv;
+					}
 				}
 			}
+
 			for (var n = 0; n < hands.length; n++) {
-				var e = eqs[n];
-				if (!e.best && vals[n] === max) {
-					e.outs.push(c);
+				var hle = hleqs[n];
+				// always on high not highhalf
+				if (!hle.high.best && hvals[n] === hmax) {
+					hle.high.outs.push(c);
+				}
+				if (lmax && !hle.lowhalf.best && lvals[n] === lmax) {
+					hle.lowhalf.outs.push(c);
 				}
 			}
 		}
 
 		// get equities...
-		runEqs(eqs, board, hands, bf, vf);
+		runEqs(hleqs, board, hands, dealf, hvaluef, lvaluef);
 		
-		return eqs;
+		return hleqs;
 	}
 
 	function omahaValue (board, hand) {
+		return omahaValueImpl(board, hand, value);
+	}
+
+	function omahaLowValue (board, hand) {
+		return omahaValueImpl(board, hand, afLowValue);
+	}
+
+	function omahaValueImpl (board, hand, valuef) {
 		//log("omvalue b=" + board + " h=" + hand);
 		if (board.length < 3 || board.length > 5 || hand.length < 2 || hand.length > 4) throw "omvalue";
 		for (var n = 0; n < board.length; n++) if (!board[n]) throw "omvalue";
@@ -580,7 +670,7 @@
 						a[3] = board[b2];
 						for (var b3 = b2+1; b3 < board.length; b3++) {
 							a[4] = board[b3];
-							var v = value(a);
+							var v = valuef(a);
 							//log("omv " + a + " = " + v);
 							if (v > max) {
 								max = v;
@@ -622,31 +712,39 @@
 	}
 
 	var games = {
-		he: { 
+		holdem: { 
 			holdemBoard: true, 
 			handMin: 2, 
 			handMax: 2,
 			equityFunc: holdemEquity, 
 			valueFunc: holdemValue
 		},
-		om: { 
+		omaha: { 
 			holdemBoard: true, 
 			handMin: 2, 
 			handMax: 4, 
 			equityFunc: holdemEquity, 
 			valueFunc: omahaValue
 		},
-		hd: { 
+		draw: { 
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: drawValue
 		},
-		ld: { 
+		lowdraw: { 
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: lowDrawValue
+		},
+		omahahilo: {
+			holdemBoard: true, 
+			handMin: 2, 
+			handMax: 4, 
+			equityFunc: holdemEquity, 
+			valueFunc: omahaValue,
+			lowValueFunc: omahaLowValue
 		}
 	};
 
@@ -887,33 +985,44 @@
 		console.log("hs=" + JSON.stringify(hs));
 		var game = getgame();
 		console.log("g=" + JSON.stringify(game));
-		var equities = game.equityFunc(hs.board, hs.hands, hs.blockers, game.valueFunc);
-		console.log("o=" + JSON.stringify(equities));
+		var hlequities = game.equityFunc(hs.board, hs.hands, hs.blockers, game);
+		console.log("o=" + JSON.stringify(hlequities));
 
 		clearInfoAction();
 
-		for (var n = 0; n < equities.length; n++) {
-			var e = equities[n];
-			var r = "";
-			for (var k in e.winranks) {
-				if (r.length > 0) r += " ";
-				r += ranknames[k][0] + "(" + ((e.winranks[k]*100)/(e.win+e.tie)).toFixed(0) + "%)";
-			};
-			var handrow = $(".handrow").filter(rowFilter(e.hand));
-			var wins = ((100*e.win)/e.count).toFixed(0) + "%";
-			var ties = ((100*e.tie)/e.count).toFixed(0) + "%";
-			var besteq = ((e.win+e.tie)/e.count) >= (1/equities.length);
+		for (var n = 0; n < hlequities.length; n++) {
+			var hle = hlequities[n];
+			var he = hle.high;
+			// the le...
+
+			var handrow = $(".handrow").filter(rowFilter(hle.hand));
+			var wins = ((100*he.win)/he.count).toFixed(0) + "%";
+			var ties = ((100*he.tie)/he.count).toFixed(0) + "%";
+			var besteq = ((he.win+he.tie)/he.count) >= (1/hlequities.length);
 
 			var v1 = handrow.find(".win");
-			v1.html(wins + (e.tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			v1.html(wins + (he.tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
 
 			var v2 = handrow.find(".rank");
-			v2.html(valueDesc(e.current) + (e.best ? " \u{1F600} " : ""));
+			v2.html(valueDesc(he.current) + (he.best ? " \u{1F600} " : ""));
+
+			var ranks = "";
+			for (var k in he.winranks) {
+				if (ranks.length > 0) ranks += " ";
+				ranks += ranknames[k][0] + "(" + ((he.winranks[k]*100)/(he.win+he.tie)).toFixed(0) + "%)";
+			};
+			var outs = ((he.outs.length > 0) ? " outs=" + he.outs.length + "/" + hle.rem : "");
+			var exs = hle.exact ? " exact" : " estimated";
 
 			var v3 = handrow.find(".value");
-			v3.html(r + ((e.outs.length > 0) ? " outs=" + e.outs.length + "/" + e.rem : ""));
+			v3.html(ranks + outs + exs);
+			v3.tooltip({
+  				content: "outs",
+				  track: true
+			});
 
 			// fuckin js...
+			/*
 			(function(e){
 				v3.hover(function(){
 					$(".deck").each(function(){
@@ -925,12 +1034,17 @@
 				}, function(){
 					$(".deck").removeClass("out");
 				});
-			})(e);
+			})(he);
+			*/
 		}
 	}
 
 	/** init ... */
 	$(function() {
+		$("#hands").tooltip({
+    	  content: "hello"
+    	});
+
 		var dt = $("#deck").get(0);
 		for (var n = 0; n < deckArr.length; n++) {
 			var c = deckArr[n];
