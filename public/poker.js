@@ -60,7 +60,7 @@
 	};
 
 	var ranknames = {
-		"1": ["HC", "High Card"],
+		"1": ["HC", "High"],
 		"2": ["P", "Pair"],
 		"3": ["2P", "Two Pair"],
 		"4": ["3K", "Three of a Kind"],
@@ -97,7 +97,7 @@
 
 	/** deuce to seven low value */
 	function dsLowValue (hand) {
-		var v = value(hand);
+		var v = highValue(hand);
 		if (v == "95") {
 			// convert 5-high straight flush to a5432-high flush
 			v = "6e5432";
@@ -108,15 +108,20 @@
 		return "f" + inverseValue(v);
 	}
 
-	/** 8 or better low value (null for no low) */
+	/** 8 or better low value (inverse of high cards or null for no low) */
 	function afLowValue (hand) {
 		validateHand(hand);
 		var v = pairValue(hand);
-		if (v[0] === ranks.highCard && parseInt(v[1],16) <= 8) {
-			return "e" + inverseValue(v);
-		} else {
-			return null;
+		if (v[0] === ranks.highCard) {
+			if (v[1] == "e") {
+				// change ace high to ace low
+				v = ranks.highCard + v.substring(2) + "e";
+			}
+			if (parseInt(v[1],16) <= 8) {
+				return "e" + inverseValue(v);
+			}
 		}
+		return null;
 	}
 
 	/** throw exception if hand is not 5 unique cards */
@@ -137,7 +142,7 @@
 	}
 
 	/** hi value */
-	function value (hand) {
+	function highValue (hand) {
 		validateHand(hand);
 		var v = pairValue(hand);
 		if (v[0] === ranks.highCard) {
@@ -262,7 +267,7 @@
 		var c5 = faces[parseInt(v[5], 16)];
 		var name = ranknames[r][1];
 		switch (r) {
-			case ranks.highCard: return name + " " + c1 + c2 + c3 + c4 + c5;
+			case ranks.highCard: return c1 + c2 + c3 + c4 + c5 + " " + name;
 			case ranks.pair: return name + " " + c1 + " - " + c2 + c3 + c4;
 			case ranks.twoPair: return name + " " + c1 + + c2 + " - " + c3;
 			case ranks.threeOfAKind: return name + " " + c1 + " - " + c2 + c3;
@@ -363,7 +368,7 @@
 	}
 
 	function drawValue (board, hand) {
-		return value(hand);
+		return highValue(hand);
 	}
 
 	function lowDrawValue (board, hand) {
@@ -578,8 +583,10 @@
 					hmax = hv;
 				}
 				hle.high.current = hv;
+				hle.highhalf.current = hv;
 				if (lvaluef) {
 					var lv = lvaluef(board, hands[n]);
+					console.log("lv of b=" + board + " h=" + hands[n] + " is " + lv);
 					if (lv > lmax) {
 						lmax = lv;
 					}
@@ -595,6 +602,7 @@
 			// always on high not highhalf
 			if (hle.high.current === hmax) {
 				hle.high.best = true;
+				hle.highhalf.best = true;
 			}
 			if (hle.lowhalf.current && hle.lowhalf.current === lmax) {
 				hle.lowhalf.best = true;
@@ -645,21 +653,21 @@
 	}
 
 	function omahaValue (board, hand) {
-		return omahaValueImpl(board, hand, value);
+		return omahaValueImpl(board, hand, highValue);
 	}
 
 	function omahaLowValue (board, hand) {
 		return omahaValueImpl(board, hand, afLowValue);
 	}
 
+	/** return omaha value (maybe null) */
 	function omahaValueImpl (board, hand, valuef) {
-		//log("omvalue b=" + board + " h=" + hand);
-		if (board.length < 3 || board.length > 5 || hand.length < 2 || hand.length > 4) throw "omvalue";
-		for (var n = 0; n < board.length; n++) if (!board[n]) throw "omvalue";
-		for (var n = 0; n < hand.length; n++) if (!hand[n]) throw "omvalue";
+		if (board.length < 3 || board.length > 5 || hand.length < 2 || hand.length > 4) throw "omaha value board";
+		//for (var n = 0; n < board.length; n++) if (!board[n]) throw "omaha value board card";
+		//for (var n = 0; n < hand.length; n++) if (!hand[n]) throw "omaha value hand card";
 		// pick 2 from hand, 3 from board
 		var a = [];
-		var max = "";
+		var max = null;
 		for (var h1 = 0; h1 < hand.length; h1++) {
 			a[0] = hand[h1];
 			for (var h2 = h1+1; h2 < hand.length; h2++) {
@@ -671,9 +679,10 @@
 						for (var b3 = b2+1; b3 < board.length; b3++) {
 							a[4] = board[b3];
 							var v = valuef(a);
-							//log("omv " + a + " = " + v);
-							if (v > max) {
-								max = v;
+							if (v) {
+								if (!max || v > max) {
+									max = v;
+								}
 							}
 						}
 					}
@@ -699,7 +708,7 @@
 						a[3] = board[h4 - 2];
 						for (var h5 = h4+1; h5 < len; h5++) {
 							a[4] = board[h5 - 2];
-							var v = value(a);
+							var v = highValue(a);
 							if (v > max) {
 								max = v;
 							}
@@ -754,7 +763,7 @@
 		if (g) {
 			return g;
 		}
-		throw "game";
+		throw "unknown game " + text;
 	}
 
 	function gameAction (e, ui) {
@@ -845,7 +854,7 @@
 					h.push(c);
 				}
 			});
-			console.log("mins=" + mins + " maxs=" + maxs + " isb=" + isb + " h=" + h);
+			//console.log("mins=" + mins + " maxs=" + maxs + " isb=" + isb + " h=" + h);
 			if (isb || h.length > 0) {
 				// board can be length 0, otherwise must be at least mins
 				if ((isb && h.length === 0) || h.length >= mins) {
@@ -1004,32 +1013,50 @@
 
 		for (var n = 0; n < hlequities.length; n++) {
 			var hle = hlequities[n];
-			var he = hle.high;
-			// the le...
-
 			var handrow = $(".handrow").filter(rowFilter(hle.hand));
-			var wins = ((100*he.win)/he.count).toFixed(0) + "%";
-			var ties = ((100*he.tie)/he.count).toFixed(0) + "%";
-			var besteq = ((he.win+he.tie)/he.count) >= (1/hlequities.length);
+			var xe = hle.high;
+			var he = hle.highhalf;
+			var le = hle.lowhalf;
+			// he.count==le.count
+
+			var xweight = xe.count/(xe.count+he.count);
+			console.log("xweight=" + xweight + " xewin=" + (xe.win/xe.count) + " hewin=" + (he.win/(he.count*2)) + " lewin=" + (le.win/(le.count*2)));
+			var win = (xe.count>0?(xweight*(xe.win/xe.count)):0) + (he.count>0?((1-xweight)*((he.win/(he.count*2))+(le.win/(le.count*2)))):0);
+			var tie = (xe.count>0?(xweight*(xe.tie/xe.count)):0) + (he.count>0?((1-xweight)*((he.tie/(he.count*2))+(le.tie/(le.count*2)))):0);
+			var wins = (100*win).toFixed(0)+"%";
+			var ties = (100*tie).toFixed(0)+"%";
+			var besteq = (win+tie) >= (1/hlequities.length);
+			// var wins = ((100*xe.win)/xe.count).toFixed(0) + "%";
+			// var ties = ((100*xe.tie)/xe.count).toFixed(0) + "%";
+			// var besteq = ((xe.win+xe.tie)/xe.count) >= (1/hlequities.length);
 
 			var v1 = handrow.find(".win");
-			v1.html(wins + (he.tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			v1.html(wins + (tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			var t = "<table><tr><th/><th>win</th><th>tie</th><th>total</th></tr>"
+				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xe.count + "</td></tr>"
+				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + he.count + "</td></tr>"
+				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + le.count + "</td></tr></table>";
+			v1.attr('title', t);
 
 			var v2 = handrow.find(".rank");
-			v2.html(valueDesc(he.current) + (he.best ? " \u{1F600} " : ""));
+			var rs = valueDesc(xe.current) + (xe.best ? " \u{1F600} " : "");
+			if (le.count > 0) {
+				rs = rs + "<br>" + valueDesc(le.current) + (le.best ? " \u{1F600} " : "");
+			}
+			v2.html(rs);
 
 			var ranks = "";
-			for (var k in he.winranks) {
+			for (var k in xe.winranks) {
 				if (ranks.length > 0) ranks += " ";
-				ranks += ranknames[k][0] + "(" + ((he.winranks[k]*100)/(he.win+he.tie)).toFixed(0) + "%)";
+				ranks += ranknames[k][0] + "(" + ((xe.winranks[k]*100)/(xe.win+xe.tie)).toFixed(0) + "%)";
 			};
-			var outs = ((he.outs.length > 0) ? " outs=" + he.outs.length + "/" + hle.rem : "");
+			var outs = ((xe.outs.length > 0) ? " outs=" + xe.outs.length + "/" + hle.rem : "");
 			var exs = hle.exact ? " exact" : " estimated";
 
 			var v3 = handrow.find(".value");
 			v3.html(ranks + outs + exs);
-			if (he.outs.length > 0) {
-				v3.attr('title', "<p>outs=" + he.outs + "</outs>");
+			if (xe.outs.length > 0) {
+				v3.attr('title', "<p>outs=" + xe.outs + "</outs>");
 			}
 
 			// add data for hover
