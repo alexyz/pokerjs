@@ -264,11 +264,11 @@
 		switch (r) {
 			case ranks.highCard: return name + " " + c1 + c2 + c3 + c4 + c5;
 			case ranks.pair: return name + " " + c1 + " - " + c2 + c3 + c4;
-			case ranks.twoPair: return name + " " + c1 + " and " + c2 + " - " + c3;
+			case ranks.twoPair: return name + " " + c1 + + c2 + " - " + c3;
 			case ranks.threeOfAKind: return name + " " + c1 + " - " + c2 + c3;
 			case ranks.straight: return name + " " + c1;
 			case ranks.flush: return name + " " + c1 + c2 + c3 + c4 + c5;
-			case ranks.fullHouse: return name + " " + c1 + " over " + c2;
+			case ranks.fullHouse: return name + " " + c1 + c2;
 			case ranks.fourOfAKind: return name + " " + c1 + " - " + c2;
 			case ranks.straightFlush: return name + " " + c1;
 			case ranks.royalFlush: return name;
@@ -322,7 +322,7 @@
 						lmaxcount++;
 					} else if (lv > lmax) {
 						lmaxcount = 1;
-						lmax = v;
+						lmax = lv;
 					}
 				}
 			}
@@ -562,7 +562,7 @@
 
 	/** calculate high/low holdem/omaha equity, returns array of HLEquity */
 	function holdemEquityImpl (board, hands, dealf, hvaluef, lvaluef) {
-		console.log("holdemEquityImpl b=" + board + " h=" + hands + " df=" + dealf + " hv=" + hvaluef + " lv=" + lvaluef);
+		console.log("holdemEquityImpl b=" + board + " h=" + hands);
 
 		var hleqs = [];
 
@@ -788,7 +788,6 @@
 		for (var n = 0; n < maxs; n++) {
 			var td = tr.insertCell(-1);
 			$(td).addClass("hand card");
-			// don't create fn in loop
 			$(td).click(function(e) {
 				handtdclicked(e.currentTarget);
 			});
@@ -801,6 +800,18 @@
 			var td3 = tr.insertCell(-1);
 			$(td3).addClass("value info");
 		}
+		// highlight the outs on hover
+		$(tr).hover(function(){
+			var hle = $(this).data("hle");
+			$(".deck").each(function(){
+				var t = $(this);
+				if (hle && hle.high.outs.indexOf(t.data("card")) >= 0) {
+					t.addClass("out");
+				}
+			});
+		}, function(){
+			$(".deck").removeClass("out");
+		});
 		return tr;
 	}
 
@@ -945,7 +956,7 @@
 
 	function clearInfoAction () {
 		$("#hands").find(".info").each(function(i,e) {
-			$(e).html("");
+			$(e).empty().removeAttr('title');
 		})
 	}
 
@@ -989,6 +1000,7 @@
 		console.log("o=" + JSON.stringify(hlequities));
 
 		clearInfoAction();
+		$(".deck").removeClass("out");
 
 		for (var n = 0; n < hlequities.length; n++) {
 			var hle = hlequities[n];
@@ -1016,33 +1028,20 @@
 
 			var v3 = handrow.find(".value");
 			v3.html(ranks + outs + exs);
-			v3.tooltip({
-  				content: "outs",
-				  track: true
-			});
+			if (he.outs.length > 0) {
+				v3.attr('title', "<p>outs=" + he.outs + "</outs>");
+			}
 
-			// fuckin js...
-			/*
-			(function(e){
-				v3.hover(function(){
-					$(".deck").each(function(){
-						var t = $(this);
-						if (e.outs.indexOf(t.data("card")) >= 0) {
-							t.addClass("out");
-						}
-					});
-				}, function(){
-					$(".deck").removeClass("out");
-				});
-			})(he);
-			*/
+			// add data for hover
+			handrow.data("hle", hle);
 		}
 	}
 
 	/** init ... */
 	$(function() {
-		$("#hands").tooltip({
-    	  content: "hello"
+		$(document).tooltip({
+      		track: true,
+      		content: function() { return $(this).attr('title'); }
     	});
 
 		var dt = $("#deck").get(0);

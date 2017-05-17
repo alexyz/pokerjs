@@ -1,6 +1,7 @@
 todo
 
-recalc doesnt clear old out hovers
+hilo - show low hand value, show combined equity
+recalc doesnt clear old out hovers - fixed
 draw doesn't give any outs
 draw should hide board
 draw - exact draw when 2 cards remaining
@@ -19,6 +20,7 @@ get current/get best current - extract into seperate function (for stud)
 show trial count/if exact
 ability to add/remove hands
 ability to set blockers
+drag and drop of cards
 
 
 add these games
