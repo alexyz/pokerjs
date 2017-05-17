@@ -269,7 +269,7 @@
 		switch (r) {
 			case ranks.highCard: return c1 + c2 + c3 + c4 + c5 + " " + name;
 			case ranks.pair: return name + " " + c1 + " - " + c2 + c3 + c4;
-			case ranks.twoPair: return name + " " + c1 + + c2 + " - " + c3;
+			case ranks.twoPair: return name + " " + c1 + c2 + " - " + c3;
 			case ranks.threeOfAKind: return name + " " + c1 + " - " + c2 + c3;
 			case ranks.straight: return name + " " + c1;
 			case ranks.flush: return name + " " + c1 + c2 + c3 + c4 + c5;
@@ -300,13 +300,11 @@
 
 	/** update the eqs with the simulation */
 	function runEqs (hlequities, board, hands, dealf, hvaluef, lvaluef) {
-		var count = 0;
 		var hvals = [], lvals = [];
 
 		while (dealf.hasnext()) {
 			// deal a new board
 			dealf.next(board, hands);
-			count++;
 
 			var hmax = "", lmax = "";
 			var hmaxcount = 0, lmaxcount = 0;
@@ -335,34 +333,33 @@
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update the high half only
-				var he = lmaxcount == 0 ? hlequities[n].high : hlequities[n].highhalf;
+				var xe = lmaxcount == 0 ? hlequities[n].high : hlequities[n].highhalf;
 				var le = hlequities[n].lowhalf;
 
 				if (hvals[n] === hmax) {
 					if (hmaxcount === 1) {
-						he.win++;
+						xe.win++;
 					} else {
-						he.tie++;
+						xe.tie++;
 					}
 					var r = rank(hmax);
-					var rc = he.winranks[r] || 0;
-					he.winranks[r] = rc+1;
+					var rc = xe.winranks[r] || 0;
+					xe.winranks[r] = rc+1;
 				}
 
-				if (lmaxcount > 0 && lvals[n] == lmax) {
-					if (lmaxcount === 1) {
-						le.win++;
-					} else {
-						le.tie++;
+				if (lmaxcount > 0) {
+					if (lvals[n] == lmax) {
+						if (lmaxcount === 1) {
+							le.win++;
+						} else {
+							le.tie++;
+						}
 					}
 					// don't bother with winranks for low
+					le.count++;
 				}
 
-				// update count (currently on equity)
-				he.count = count;
-				if (lmaxcount > 0) {
-					le.count = count;
-				}
+				xe.count++;
 			}
 		}
 	}
@@ -797,9 +794,8 @@
 		for (var n = 0; n < maxs; n++) {
 			var td = tr.insertCell(-1);
 			$(td).addClass("hand card");
-			$(td).click(function(e) {
-				handtdclicked(e.currentTarget);
-			});
+			$(td).click(handtdclicked);
+			$(td).dblclick(handtdclicked2);
 		}
 		if (!isboard) {
 			var td1 = tr.insertCell(-1);
@@ -929,6 +925,7 @@
 		}
 	}
 
+	/** set or clear card on jquery object */
 	function setcard (td, c) {
 		if (c) {
 			td.html("<span class='" + c.substring(1,2) + "'>" + formatCard(c) + "</span>");
@@ -943,11 +940,24 @@
 		return $(td).data("card");
 	}
 
-	function handtdclicked (td) {
-		console.log("decktdclicked " + td.outerHTML);
+	function handtdclicked (e) {
+		var td = e.currentTarget;
+		console.log("handtdclicked " + td.outerHTML);
 		// deselect others
 		$(".hand").removeClass("current");
 		$(td).addClass("current");
+	}
+
+	function handtdclicked2 (e) {
+		// update selection
+		handtdclicked(e);
+		// deselect deck card
+		var oc = $(e.currentTarget).data("card");
+		if (oc) {
+			$(".deck").filter(cardFilter(oc)).removeClass("selected");
+		}
+		// delete hand card
+		setcard($(e.currentTarget), null);
 	}
 
 	function randomInt (n) {
@@ -1077,7 +1087,6 @@
 			if (n % 13 === 0) {
 				var tr = dt.insertRow(-1);
 			}
-			// XXX tr used out of scope
 			var td = tr.insertCell(-1);
 			$(td).click(function(e) {
 				decktdclicked(e.currentTarget);
