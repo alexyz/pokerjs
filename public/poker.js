@@ -1059,10 +1059,10 @@
 
 			var v1 = handrow.find(".win");
 			v1.html(wins + (tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
-			var t = "<table><tr><th/><th>win</th><th>tie</th><th>total</th></tr>"
-				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xe.count + "</td></tr>"
-				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + he.count + "</td></tr>"
-				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + le.count + "</td></tr></table>";
+			var t = "<table><tr><th/><th>win</th><th>tie</th><th>lose</th><th>total</th></tr>"
+				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + (xe.count-xe.win-xe.tie) + "</td><td>" + xe.count + "</td></tr>"
+				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + (he.count-he.win-he.tie) + "</td><td>" + he.count + "</td></tr>"
+				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + (le.count-le.win-le.tie) + "</td><td>" + le.count + "</td></tr></table>";
 			v1.attr('title', t);
 
 			var v2 = handrow.find(".rank");

@@ -1,5 +1,6 @@
 todo
 
+holdem on turn gives 44 outs but only 43 samples...
 use objects.freeze more
 need copy method instead of using slice
 win/tie/total should be win/tie/lose/total
@@ -9,22 +10,15 @@ low draw not working
 low outs seem to be whole deck if already has only low on flop
 
 hilo - show h/l outs in different colours
-recalc doesnt clear old out hovers - fixed
 draw should hide board
 draw - exact draw when 2 cards remaining
 draw doesn't give ranks with card missing
 low draw - info needs low hand names
-double click in hand should clear card
-change of hand card should clear calc
-recalc with blank hand doesn't remove old text
-should show 'outs' for best hand?
+change of hand card should clear calc?
 disable text selection
 cookie to remember game
 keylistener for entering hands
-warn if jquery not available
 click instead of hover on outs for mobile
-get current/get best current - extract into seperate function (for stud)
-show trial count/if exact
 ability to add/remove hands
 ability to set blockers
 drag and drop of cards
