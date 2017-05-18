@@ -4,7 +4,7 @@ use objects.freeze more
 need copy method instead of using slice
 draw doesn't give any outs - needs a board
 hilo should probably say no low if anyone else has a low on river
-low draw not working
+hide high half/low half/total in hover if not a hilo game
 
 hilo - show h/l outs in different colours
 draw should hide board

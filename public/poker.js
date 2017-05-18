@@ -373,21 +373,25 @@
 	}
 
 	function drawValue (board, hand) {
+		return drawValueImpl(board, hand, highValue);
+	}
+
+	function drawValueImpl (board, hand, valuef) {
 		// board=0,1 hand=1-5 (ignore board if hand 5)
 		if (hand.length == 5) {
-			return highValue(hand);
+			return valuef(hand);
 		} else if (board.length == 1 && hand.length == 4) {
 			// allow 1 card from board for outs
 			var hand2 = hand.slice(0);
 			hand2[4] = board[0];
-			return highValue(hand);
+			return valuef(hand);
 		} else {
 			return null;
 		}
 	}
 
 	function lowDrawValue (board, hand) {
-		return dsLowValue(hand);
+		return drawValueImpl(board, hand, dsLowValue);
 	}
 
 	function drawEquity (board, hands, blockers, game) {
