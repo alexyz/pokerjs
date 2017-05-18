@@ -670,7 +670,10 @@
 
 	/** return omaha value (maybe null) */
 	function omahaValueImpl (board, hand, valuef) {
-		if (board.length < 3 || board.length > 5 || hand.length < 2 || hand.length > 4) throw "omaha value board";
+		if (board.length > 5 || hand.length < 2 || hand.length > 4) throw "omaha value board=" + board + " hand=" + hand;
+		if (board.length < 3) {
+			return null;
+		}
 		//for (var n = 0; n < board.length; n++) if (!board[n]) throw "omaha value board card";
 		//for (var n = 0; n < hand.length; n++) if (!hand[n]) throw "omaha value hand card";
 		// pick 2 from hand, 3 from board
@@ -687,10 +690,9 @@
 						for (var b3 = b2+1; b3 < board.length; b3++) {
 							a[4] = board[b3];
 							var v = valuef(a);
-							if (v) {
-								if (!max || v > max) {
-									max = v;
-								}
+							// value is null if not qualified
+							if (v && (!max || v > max)) {
+								max = v;
 							}
 						}
 					}
@@ -704,7 +706,7 @@
 		if (board.length > 5 || hand.length !== 2) {
 			throw "hevalue board=" + board + " hand=" + hand;
 		}
-		if (board.length == 0) {
+		if (board.length < 3) {
 			return null;
 		}
 		// pick 0-2 from hand, 3-5 from board
