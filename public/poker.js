@@ -299,12 +299,19 @@
 	}
 
 	/** update the eqs with the simulation */
-	function runEqs (hlequities, board, hands, dealf, hvaluef, lvaluef) {
+	function runEqs (hlequities, board, hands, dealer, hvaluef, lvaluef) {
 		var hvals = [], lvals = [];
 
-		while (dealf.hasnext()) {
+		// copy board/hands before mutate
+		board = board.slice(0);
+		hands = hands.slice(0);
+		for (var n = 0; n < hands.length; n++) {
+			hands[n] = hands[n].slice(0);
+		}
+
+		while (dealer.hasnext()) {
 			// deal a new board
-			dealf.next(board, hands);
+			dealer.next(board, hands);
 
 			var hmax = "", lmax = "";
 			var hmaxcount = 0, lmaxcount = 0;
@@ -333,8 +340,9 @@
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update the high half only
-				var xe = lmaxcount == 0 ? hlequities[n].high : hlequities[n].highhalf;
-				var le = hlequities[n].lowhalf;
+				var hle = hlequities[n];
+				var xe = lmaxcount == 0 ? hle.high : hle.highhalf;
+				var le = hle.lowhalf;
 
 				if (hvals[n] === hmax) {
 					if (hmaxcount === 1) {
@@ -343,8 +351,8 @@
 						xe.tie++;
 					}
 					var r = rank(hmax);
-					var rc = xe.winranks[r] || 0;
-					xe.winranks[r] = rc+1;
+					var rc = hle.highsum.winranks[r] || 0;
+					hle.highsum.winranks[r] = rc+1;
 				}
 
 				if (lmaxcount > 0) {
@@ -365,42 +373,36 @@
 	}
 
 	function drawValue (board, hand) {
-		return highValue(hand);
+		// board=0,1 hand=1-5 (ignore board if hand 5)
+		if (hand.length == 5) {
+			return highValue(hand);
+		} else if (board.length == 1 && hand.length == 4) {
+			// allow 1 card from board for outs
+			var hand2 = hand.slice(0);
+			hand2[4] = board[0];
+			return highValue(hand);
+		} else {
+			return null;
+		}
 	}
 
 	function lowDrawValue (board, hand) {
 		return dsLowValue(hand);
 	}
 
-	function drawEquity (board, hands, blockers, vf) {
+	function drawEquity (board, hands, blockers, game) {
 		console.log("draw equity");
-		if (board || hands.length < 2) throw "dequity: board/hands";
+		if (board.length > 0 || hands.length < 2) throw "draw equity board=" + board + " hands=" + hands;
 		var deck = remove(deckArr.slice(0), board, hands, blockers);
-		var hands2 = [];
-		var equities = [];
 		var unknown = 0;
 		for (var n = 0; n < hands.length; n++) {
-			equities[n] = new Equity(hands[n]);
-			hands2[n] = hands[n].slice(0);
 			unknown = unknown + (5 - hands[n].length);
 		}
 		// TODO u=1,2 exact draw
-		var df = unknown == 0 ? new FixedDraw() : new RandomDraw(deck, hands, 1000);
-		runEqs(equities, board, hands2, df, vf);
-		return equities;
+		console.log("unknown=" + unknown);
+		var dealer = unknown == 0 ? new FixedBoard() : new RandomDraw(deck, hands, 1000);
+		return equityImpl(board, hands, dealer, game.valueFunc, null);
 	}
-
-	function FixedDraw () {
-		this.n = 0;
-	}
-
-	FixedDraw.prototype.hasnext = function () {
-		return this.n == 0;
-	};
-
-	FixedDraw.prototype.next = function (board, hands) {
-		this.n++;
-	};
 
 	function RandomDraw (deck, hands, max) {
 		this.n = 0;
@@ -423,6 +425,7 @@
 				hands[n][n2] = this.deck[i++];
 			}
 		}
+		if (i == 0) throw "random draw: no draws on board=" + board + " hands=" + hands;
 		//log("rd board=" + board + " hands=" + JSON.stringify(hands));
 		this.n++;
 	};
@@ -444,7 +447,7 @@
 		} else {
 			throw "he";
 		}
-		return holdemEquityImpl(board, hands, dealf, game.valueFunc, game.lowValueFunc);
+		return equityImpl(board, hands, dealf, game.valueFunc, game.lowValueFunc);
 	}
 
 	function RandomBoard (deck, max) {
@@ -457,7 +460,7 @@
 		return this.n < this.max;
 	};
 
-	RandomBoard.prototype.next = function (board) {
+	RandomBoard.prototype.next = function (board, hands) {
 		//log("rb n=" + this.n);
 		shuffle(this.deck);
 		for (var n = 0; n < 5; n++) {
@@ -472,10 +475,10 @@
 	}
 
 	FixedBoard.prototype.hasnext = function () {
-		return this.n < 1;
+		return this.n == 0;
 	};
 
-	FixedBoard.prototype.next = function (board) {
+	FixedBoard.prototype.next = function (board, hands) {
 		this.n++;
 	};
 
@@ -493,7 +496,7 @@
 		return this.n1 < this.deck.length - 2 || this.n2 < this.deck.length - 1;
 	};
 
-	Board3.prototype.next = function (board) {
+	Board3.prototype.next = function (board, hands) {
 		// 0=1,2 1=1,3 2=1,4 max=dl-2,dl-1
 		//log("b3 n=" + this.n1 + "," + this.n2);
 		board[3] = this.deck[this.n1];
@@ -527,7 +530,7 @@
 		return this.n < this.deck.length - 1;
 	};
 
-	Board4.prototype.next = function (board) {
+	Board4.prototype.next = function (board, hands) {
 		//log("b4 n=" + this.n);
 		board[4] = this.deck[this.n++];
 	};
@@ -536,13 +539,14 @@
 		return this.o < this.deck.length;
 	};
 
-	Board4.prototype.nextout = function (board) {
+	Board4.prototype.nextout = function (board, hands) {
 		board[4] = this.deck[this.o++];
 		return board[4];
 	};
 
+	/** object containing high and low equities and summaries */
 	function HLEquity (hand) {
-		if (!hand) throw "equity: no hand";
+		if (!hand) throw "hlequity: no hand";
 		this.hand = hand;
 		this.high = new Equity();
 		this.highhalf = new Equity();
@@ -550,21 +554,29 @@
 		this.exact = null;
 		// cards remaining in deck
 		this.rem = 0;
+		this.highsum = new Sum();
+		this.lowsum = new Sum();
 	}
 
 	function Equity () {
-		this.current = null;
 		this.count = 0;
 		this.win = 0;
 		this.tie = 0;
+	}
+
+	/** summary of high/low value */
+	function Sum () {
+		// current value
+		this.current = null;
+		// map of rank to times won (highcount+highhalf)
 		this.winranks = {};
 		this.best = false;
 		this.outs = [];
 	}
 
-	/** calculate high/low holdem/omaha equity, returns array of HLEquity */
-	function holdemEquityImpl (board, hands, dealf, hvaluef, lvaluef) {
-		console.log("holdemEquityImpl b=" + board + " h=" + hands);
+	/** calculate high/low equity, returns array of HLEquity */
+	function equityImpl (board, hands, dealer, hvaluef, lvaluef) {
+		console.log("equity impl b=" + board + " h=" + hands);
 
 		var hleqs = [];
 
@@ -572,47 +584,47 @@
 		var hmax = "", lmax = "";
 		for (var n = 0; n < hands.length; n++) {
 			var hle = new HLEquity(hands[n]);
-			hle.exact = dealf.exact;
-			hle.rem = dealf.deck ? dealf.deck.length : 0;
-			if (board.length >= 3) {
-				var hv = hvaluef(board, hands[n]);
-				if (hv > hmax) {
-					hmax = hv;
-				}
-				hle.high.current = hv;
-				hle.highhalf.current = hv;
-				if (lvaluef) {
-					var lv = lvaluef(board, hands[n]);
-					console.log("lv of b=" + board + " h=" + hands[n] + " is " + lv);
-					if (lv > lmax) {
-						lmax = lv;
-					}
-					hle.lowhalf.current = lv;
-				}
+			hle.exact = dealer.exact;
+			hle.rem = dealer.deck ? dealer.deck.length : 0;
+			var hv = hvaluef(board, hands[n]);
+			if (hv && hv > hmax) {
+				hmax = hv;
 			}
+			hle.highsum.current = hv;
+
+			if (lvaluef) {
+				var lv = lvaluef(board, hands[n]);
+				console.log("lv of b=" + board + " h=" + hands[n] + " is " + lv);
+				if (lv && lv > lmax) {
+					lmax = lv;
+				}
+				hle.lowsum.current = lv;
+			}
+			
 			hleqs[n] = hle;
 		}
 
 		// get best current
 		for (var n = 0; n < hands.length; n++) {
 			var hle = hleqs[n];
-			// always on high not highhalf
-			if (hle.high.current === hmax) {
-				hle.high.best = true;
-				hle.highhalf.best = true;
+			if (hle.highsum.current === hmax) {
+				hle.highsum.best = true;
 			}
-			if (hle.lowhalf.current && hle.lowhalf.current === lmax) {
-				hle.lowhalf.best = true;
+			console.log("hand=" + hands[n] + " lcurrent=" + hle.lowsum.current + " lmax=" + lmax);
+			if (hle.lowsum.current && hle.lowsum.current === lmax) {
+				console.log("it's best");
+				hle.lowsum.best = true;
 			}
 		}
 
-		var b = board.slice(0);
+		var b = board ? board.slice(0) : [];
 		var hvals = [], lvals = [];
 
 		// get the outs for next street only
-		while (dealf.outs && dealf.hasouts()) {
+		// even for draw games, pretend there is a board to check outs
+		while (dealer.outs && dealer.hasouts()) {
 			// apply out to board
-			var c = dealf.nextout(b);
+			var c = dealer.nextout(b);
 
 			// get new value
 			var hmax = null, lmax = null;
@@ -633,18 +645,17 @@
 
 			for (var n = 0; n < hands.length; n++) {
 				var hle = hleqs[n];
-				// always on high not highhalf
-				if (!hle.high.best && hvals[n] === hmax) {
-					hle.high.outs.push(c);
+				if (!hle.highsum.best && hvals[n] === hmax) {
+					hle.highsum.outs.push(c);
 				}
-				if (lmax && !hle.lowhalf.best && lvals[n] === lmax) {
-					hle.lowhalf.outs.push(c);
+				if (!hle.lowsum.best && lvals[n] && lvals[n] === lmax) {
+					hle.lowsum.outs.push(c);
 				}
 			}
 		}
 
 		// get equities...
-		runEqs(hleqs, board, hands, dealf, hvaluef, lvaluef);
+		runEqs(hleqs, board, hands, dealer, hvaluef, lvaluef);
 		
 		return hleqs;
 	}
@@ -690,7 +701,12 @@
 	}
 
 	function holdemValue (board, hand) {
-		if (board.length < 3 || board.length > 5 || hand.length !== 2) throw "hevalue";
+		if (board.length > 5 || hand.length !== 2) {
+			throw "hevalue board=" + board + " hand=" + hand;
+		}
+		if (board.length == 0) {
+			return null;
+		}
 		// pick 0-2 from hand, 3-5 from board
 		var a = [];
 		var max = "";
@@ -705,6 +721,7 @@
 						a[3] = board[h4 - 2];
 						for (var h5 = h4+1; h5 < len; h5++) {
 							a[4] = board[h5 - 2];
+							// holdem only played high
 							var v = highValue(a);
 							if (v > max) {
 								max = v;
@@ -732,7 +749,15 @@
 			equityFunc: holdemEquity, 
 			valueFunc: omahaValue
 		},
-		draw: { 
+		omahahilo: {
+			holdemBoard: true, 
+			handMin: 2, 
+			handMax: 4, 
+			equityFunc: holdemEquity, 
+			valueFunc: omahaValue,
+			lowValueFunc: omahaLowValue
+		},
+		highdraw: { 
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
@@ -743,14 +768,6 @@
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: lowDrawValue
-		},
-		omahahilo: {
-			holdemBoard: true, 
-			handMin: 2, 
-			handMax: 4, 
-			equityFunc: holdemEquity, 
-			valueFunc: omahaValue,
-			lowValueFunc: omahaLowValue
 		}
 	};
 
@@ -810,9 +827,10 @@
 			var hle = $(this).data("hle");
 			$(".deck").each(function(){
 				var t = $(this);
-				if (hle && hle.high.outs.indexOf(t.data("card")) >= 0) {
+				if (hle && (hle.highsum.outs.indexOf(t.data("card")) >= 0 || hle.lowsum.outs.indexOf(t.data("card")) >= 0)) {
 					t.addClass("out");
 				}
+				// XXX add lowouts
 			});
 		}, function(){
 			$(".deck").removeClass("out");
@@ -837,7 +855,7 @@
 	}
 
 	function getcards () {
-		var hs = { board: null, hands: [], blockers: [] };
+		var hs = { board: [], hands: [], blockers: [] };
 		$(".handrow").each(function(i,tr) {
 			$(tr).removeClass("error");
 			var mins = $(tr).data("mins");
@@ -1036,9 +1054,6 @@
 			var wins = (100*win).toFixed(0)+"%";
 			var ties = (100*tie).toFixed(0)+"%";
 			var besteq = (win+tie) >= (1/hlequities.length);
-			// var wins = ((100*xe.win)/xe.count).toFixed(0) + "%";
-			// var ties = ((100*xe.tie)/xe.count).toFixed(0) + "%";
-			// var besteq = ((xe.win+xe.tie)/xe.count) >= (1/hlequities.length);
 
 			var v1 = handrow.find(".win");
 			v1.html(wins + (tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
@@ -1049,24 +1064,25 @@
 			v1.attr('title', t);
 
 			var v2 = handrow.find(".rank");
-			var rs = valueDesc(xe.current) + (xe.best ? " \u{1F600} " : "");
+			var rs = valueDesc(hle.highsum.current) + (hle.highsum.best ? " \u{1F600} " : "");
 			if (le.count > 0) {
-				rs = rs + "<br>" + valueDesc(le.current) + (le.best ? " \u{1F600} " : "");
+				rs = rs + "<br>" + valueDesc(hle.lowsum.current) + (hle.lowsum.best ? " \u{1F600} " : "");
 			}
 			v2.html(rs);
 
 			var ranks = "";
-			for (var k in xe.winranks) {
+			for (var k in hle.highsum.winranks) {
 				if (ranks.length > 0) ranks += " ";
-				ranks += ranknames[k][0] + "(" + ((xe.winranks[k]*100)/(xe.win+xe.tie)).toFixed(0) + "%)";
+				ranks += ranknames[k][0] + "(" + ((hle.highsum.winranks[k]*100)/(xe.win+xe.tie+he.win+he.tie)).toFixed(0) + "%)";
 			};
-			var outs = ((xe.outs.length > 0) ? " outs=" + xe.outs.length + "/" + hle.rem : "");
+			var houts = ((hle.highsum.outs.length > 0) ? " houts=" + hle.highsum.outs.length + "/" + hle.rem : "");
+			var louts = ((hle.lowsum.outs.length > 0) ? " louts=" + hle.lowsum.outs.length + "/" + hle.rem : "");
 			var exs = hle.exact ? " exact" : " estimated";
 
 			var v3 = handrow.find(".value");
-			v3.html(ranks + outs + exs);
-			if (xe.outs.length > 0) {
-				v3.attr('title', "<p>outs=" + xe.outs + "</outs>");
+			v3.html(ranks + houts + louts + exs);
+			if (hle.highsum.outs.length + hle.lowsum.outs.length > 0) {
+				v3.attr('title', "high outs = " + hle.highsum.outs + "<br>low outs = " + hle.lowsum.outs);
 			}
 
 			// add data for hover

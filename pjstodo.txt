@@ -1,8 +1,15 @@
 todo
 
-hilo - show low hand value, show combined equity
+use objects.freeze more
+need copy method instead of using slice
+win/tie/total should be win/tie/lose/total
+draw doesn't give any outs - needs a board
+hilo doesn't give smilely face for winning low on river, should probably also say no low if anyone has a low
+low draw not working
+low outs seem to be whole deck if already has only low on flop
+
+hilo - show h/l outs in different colours
 recalc doesnt clear old out hovers - fixed
-draw doesn't give any outs
 draw should hide board
 draw - exact draw when 2 cards remaining
 draw doesn't give ranks with card missing
@@ -24,28 +31,9 @@ drag and drop of cards
 
 
 add these games
-omaha hilo
 stud/studhl/razz
 badugi
 
-hilo ideas
-meq [ eqs[3] ]
-hi only
-hi half
-low half
-
-for each board
-  he = hival(hand)
-  le = lowval(hand)
-if (anylow) {
-  // someone has a low
-  update hi half/low half
-} else {
-  update hi only
-}
-hi.wincount / hicount
-hihalf.wincount / hilocount
-lohalf.wincount / hilocount
 [a23]
 [aakq] - hi only
 [jj67] - (almost) low only
