@@ -1,13 +1,10 @@
 todo
 
-holdem on turn gives 44 outs but only 43 samples...
 use objects.freeze more
 need copy method instead of using slice
-win/tie/total should be win/tie/lose/total
 draw doesn't give any outs - needs a board
-hilo doesn't give smilely face for winning low on river, should probably also say no low if anyone has a low
+hilo should probably say no low if anyone else has a low on river
 low draw not working
-low outs seem to be whole deck if already has only low on flop
 
 hilo - show h/l outs in different colours
 draw should hide board

@@ -493,7 +493,7 @@
 	}
 
 	Board3.prototype.hasnext = function () {
-		return this.n1 < this.deck.length - 2 || this.n2 < this.deck.length - 1;
+		return this.n1 < this.deck.length - 1 || this.n2 < this.deck.length;
 	};
 
 	Board3.prototype.next = function (board, hands) {
@@ -527,7 +527,7 @@
 	}
 
 	Board4.prototype.hasnext = function () {
-		return this.n < this.deck.length - 1;
+		return this.n < this.deck.length;
 	};
 
 	Board4.prototype.next = function (board, hands) {
@@ -1059,10 +1059,14 @@
 
 			var v1 = handrow.find(".win");
 			v1.html(wins + (tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			var xelose = (xe.count-xe.win-xe.tie);
+			var helose = (he.count-he.win-he.tie);
+			var lelose = (le.count-le.win-le.tie);
 			var t = "<table><tr><th/><th>win</th><th>tie</th><th>lose</th><th>total</th></tr>"
-				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + (xe.count-xe.win-xe.tie) + "</td><td>" + xe.count + "</td></tr>"
-				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + (he.count-he.win-he.tie) + "</td><td>" + he.count + "</td></tr>"
-				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + (le.count-le.win-le.tie) + "</td><td>" + le.count + "</td></tr></table>";
+				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xelose + "</td><td>" + xe.count + "</td></tr>"
+				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + helose + "</td><td>" + he.count + "</td></tr>"
+				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + lelose + "</td><td>" + le.count + "</td></tr>"
+				+ "<tr><th>total</th><td>" + (xe.win+(he.win+le.win)/2) + "</td><td>" + (xe.tie+(he.tie+le.tie)/2) + "</td><td>" + (xelose+(helose+lelose)/2) + "</td><td>" + (xe.count+le.count) + "</td></tr></table>";
 			v1.attr('title', t);
 
 			var v2 = handrow.find(".rank");
