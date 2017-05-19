@@ -741,7 +741,7 @@
 	}
 
 	var games = {
-		holdem: { 
+		holdem: {
 			holdemBoard: true, 
 			handMin: 2, 
 			handMax: 2,
@@ -777,9 +777,12 @@
 		}
 	};
 
+	function getgameid() {
+		return $("#game").find(":selected").val();
+	}
+
 	function getgame () {
-		var text = $("#game").find(":selected").val();
-		var g = games[text];
+		var g = games[getgameid()];
 		if (g) {
 			return g;
 		}
@@ -788,7 +791,10 @@
 
 	function gameAction (e, ui) {
 		console.log("game selected");
+		var id = getgameid();
 		var g = getgame();
+
+		window.sessionStorage.setItem('game', id);
 
 		$(".deck").removeClass("selected");
 		$("#board tbody").empty();
@@ -1122,15 +1128,22 @@
 			$(td).addClass("deck card");
 		}
 
+		window.onerror = function(e) {
+			alert("error: " + e);
+		};
+
+		// transform the button elements
 		$("button").button();
 		$("#random").click(randomAction);
 		$("#calc").click(calcAction);
 		$("#clear").click(clearAction);
-		// XXX need change here?
-		$("#game").selectmenu({
+
+		var gid = window.sessionStorage.getItem('game') || 'holdem';
+		$("#game").val(gid).selectmenu({
 			change: gameAction,
 			create: gameAction
 		});
+		// need to call selectmenu("refresh") to update ui
 	});
 
 })();
