@@ -60,18 +60,18 @@
 	};
 
 	var ranknames = {
-		"1": ["HC", "High"],
-		"2": ["P", "Pair"],
-		"3": ["2P", "Two Pair"],
-		"4": ["3K", "Three of a Kind"],
-		"5": ["S", "Straight"],
-		"6": ["F", "Flush"],
-		"7": ["FH", "Full House"],
-		"8": ["4K", "Four of a Kind"],
-		"9": ["SF", "Straight Flush"],
-		"a": ["RF", "Royal Flush"],
-		"e": ["af", "A-5 Low"],
-		"f": ["ds", "2-7 Low"]
+		"1": "High",
+		"2": "Pair",
+		"3": "Two Pair",
+		"4": "Three of a Kind",
+		"5": "Straight",
+		"6": "Flush",
+		"7": "Full House",
+		"8": "Four of a Kind",
+		"9": "Straight Flush",
+		"a": "Royal Flush",
+		"e": "A-5 Low",
+		"f": "2-7 Low"
 	};
 
 	function isLow (v) {
@@ -265,7 +265,7 @@
 		var c3 = faces[parseInt(v[3], 16)];
 		var c4 = faces[parseInt(v[4], 16)];
 		var c5 = faces[parseInt(v[5], 16)];
-		var name = ranknames[r][1];
+		var name = ranknames[r];
 		switch (r) {
 			case ranks.highCard: return c1 + c2 + c3 + c4 + c5 + " " + name;
 			case ranks.pair: return name + " " + c1 + " - " + c2 + c3 + c4;
@@ -1058,6 +1058,8 @@
 			var xe = hle.high;
 			var he = hle.highhalf;
 			var le = hle.lowhalf;
+			var hs = hle.highsum;
+			var ls = hle.lowsum;
 			// he.count==le.count
 
 			var xweight = xe.count/(xe.count+he.count);
@@ -1073,33 +1075,37 @@
 			var xelose = (xe.count-xe.win-xe.tie);
 			var helose = (he.count-he.win-he.tie);
 			var lelose = (le.count-le.win-le.tie);
-			var t = "<table><tr><th/><th>win</th><th>tie</th><th>lose</th><th>total</th></tr>"
-				+ "<tr><th>high only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xelose + "</td><td>" + xe.count + "</td></tr>"
-				+ "<tr><th>high half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + helose + "</td><td>" + he.count + "</td></tr>"
-				+ "<tr><th>low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + lelose + "</td><td>" + le.count + "</td></tr>"
-				+ "<tr><th>total</th><td>" + (xe.win+(he.win+le.win)/2) + "</td><td>" + (xe.tie+(he.tie+le.tie)/2) + "</td><td>" + (xelose+(helose+lelose)/2) + "</td><td>" + (xe.count+le.count) + "</td></tr></table>";
+			var t = "<table>"
+				+ "<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>"
+				+ "<tr><th>High only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xelose + "</td><td>" + xe.count + "</td></tr>"
+				+ "<tr><th>High half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + helose + "</td><td>" + he.count + "</td></tr>"
+				+ "<tr><th>Low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + lelose + "</td><td>" + le.count + "</td></tr>"
+				+ "<tr><th>Total</th><td>" + (xe.win+(he.win+le.win)/2) + "</td><td>" + (xe.tie+(he.tie+le.tie)/2) + "</td><td>" + (xelose+(helose+lelose)/2) + "</td><td>" + (xe.count+le.count) + "</td></tr>"
+				+ "</table>";
 			v1.attr('title', t);
 
 			var v2 = handrow.find(".rank");
-			var rs = valueDesc(hle.highsum.current) + (hle.highsum.best ? " \u{1F600} " : "");
+			var rs = valueDesc(hs.current) + (hs.best ? " \u{1F600} " : "");
 			if (le.count > 0) {
-				rs = rs + "<br>" + valueDesc(hle.lowsum.current) + (hle.lowsum.best ? " \u{1F600} " : "");
+				rs = rs + "<br>" + valueDesc(ls.current) + (ls.best ? " \u{1F600} " : "");
 			}
 			v2.html(rs);
 
-			var ranks = "";
-			for (var k in hle.highsum.winranks) {
-				if (ranks.length > 0) ranks += " ";
-				ranks += ranknames[k][0] + "(" + ((hle.highsum.winranks[k]*100)/(xe.win+xe.tie+he.win+he.tie)).toFixed(0) + "%)";
+			var t2 = "<table><tr><th>Win/Tie Rank</th><th>Percent</th></tr>";
+			for (var k in hs.winranks) {
+				t2 = t2 + "<tr><td>" + ranknames[k] + "</td><td>" + ((hs.winranks[k]*100)/(xe.win+xe.tie+he.win+he.tie)).toFixed(0) + "%</td></tr>";
 			};
-			var houts = ((hle.highsum.outs.length > 0) ? " houts=" + hle.highsum.outs.length + "/" + hle.rem : "");
-			var louts = ((hle.lowsum.outs.length > 0) ? " louts=" + hle.lowsum.outs.length + "/" + hle.rem : "");
+			t2 = t2 + "</table>";
+			v2.attr('title', t2);
+
+			var houts = ((hs.outs.length > 0) ? " houts=" + hs.outs.length + "/" + hle.rem : "");
+			var louts = ((ls.outs.length > 0) ? " louts=" + ls.outs.length + "/" + hle.rem : "");
 			var exs = hle.exact ? " exact" : " estimated";
 
 			var v3 = handrow.find(".value");
-			v3.html(ranks + houts + louts + exs);
-			if (hle.highsum.outs.length + hle.lowsum.outs.length > 0) {
-				v3.attr('title', "high outs = " + hle.highsum.outs + "<br>low outs = " + hle.lowsum.outs);
+			v3.html(houts + louts + exs);
+			if (hs.outs.length + ls.outs.length > 0) {
+				v3.attr('title', "high outs = " + hs.outs + "<br>low outs = " + ls.outs);
 			}
 
 			// add data for hover

@@ -60,6 +60,10 @@ table {
 	background-color: #cccc66;
 }
 
+.infoheader {
+	min-width: 5em;
+}
+
 /* table cell for hand value */
 .value { }
 
@@ -81,6 +85,10 @@ table {
 .ui-widget {
     font-family: verdana,sans-serif;
     font-size: medium;
+}
+
+.ui-tooltip {
+	font-size: smaller;
 }
 
 .card :hover {
