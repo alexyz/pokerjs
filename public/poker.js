@@ -797,14 +797,14 @@
 		window.sessionStorage.setItem('game', id);
 
 		$(".deck").removeClass("selected");
-		$("#board tbody").empty();
+		$("#board .handrow").remove();
 		var bt = $("#board").get(0);
 		if (g.holdemBoard) {
 			var btr = addHand(bt, 3, 5, true);
 		}
 
-		$("#hands tbody").empty();
-		$("#hands tbody").append("<tr><th colspan=" + g.handMax + ">hand</th><th>win/tie</th><th>rank</th><th>info</th></tr>");
+		$("#hands .handrow").remove();
+		$("#hands .handheader").attr("colspan", g.handMax);
 		var ht = $("#hands").get(0);
 		for (var n = 0; n < 4; n++) {
 			addHand(ht, g.handMin, g.handMax, false);
@@ -842,7 +842,6 @@
 				if (hle && (hle.highsum.outs.indexOf(t.data("card")) >= 0 || hle.lowsum.outs.indexOf(t.data("card")) >= 0)) {
 					t.addClass("out");
 				}
-				// XXX add lowouts
 			});
 		}, function(){
 			$(".deck").removeClass("out");
@@ -998,6 +997,7 @@
 		$(".hand").each(function(i,e){
 			setcard($(e),null);
 		});
+		$(".handrow").removeData("hle");
 		$(".deck").removeClass("selected");
 		$(".value").empty();
 		clearInfoAction();
@@ -1011,7 +1011,7 @@
 
 	function randomAction () {
 		clearAction();
-		var players = randomInt(3) + 2; // XXX check hand rows/game
+		var players = randomInt(3) + 2;
 		var deck = shuffle(deckArr.slice(0));
 		var g = getgame();
 		if (g.holdemBoard) {
@@ -1026,6 +1026,7 @@
 			}
 		}
 		var handrows = $("#hands .handrow");
+		//console.log("handrows.length=" + handrows.length);
 		for (var n = 0; n < players; n++) {
 			var handlen = randomInt(g.handMax - g.handMin + 1) + g.handMin;
 			var handrow = handrows.eq(n).find(".hand");

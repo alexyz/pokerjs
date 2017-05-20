@@ -40,12 +40,15 @@ table {
 #hands { }
 
 /* table cell in deck table ( could use #deck .card ? ) */
+/** rename to deckCard */
 .deck { }
+
 .deck:hover {
 	background-color: #ff9999;
 }
 
 /* table cell in hand table ( could use #hands .card ? ) */
+/* rename to handCard */
 .hand { }
 
 /** table row in board or hand table (could use #hands tr ? not with header row...) */
@@ -64,13 +67,20 @@ table {
 .card {
 	text-align: center;
 	vertical-align: middle;
-	width: 2.5em;
+	width: 2.25em;
 	height: 2em;
 	padding: 2px;
 	background-color: white;
 	cursor: default;
 	border-radius: 5px;
 	border: 1px solid #cccccc;
+	font-weight: bold;
+	font-size: large;
+}
+
+.ui-widget {
+    font-family: verdana,sans-serif;
+    font-size: medium;
 }
 
 .card :hover {
