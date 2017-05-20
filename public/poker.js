@@ -814,6 +814,25 @@
 		$(ht).find(".hand").first().addClass("current");
 	}
 
+	/** card dragged from deck to hand */
+	function handcarddropped (e, ui) {
+		var existingcard = $(this).data("card");
+		if (existingcard) {
+			// deselect existing card in deck
+			$(".deck").filter(cardFilter(existingcard)).removeClass("selected");
+		}
+
+		var draggedcard = ui.draggable.data("card");
+		// clear target card if already used elsewhere
+		setcard($(".hand").filter(cardFilter(draggedcard)), null);
+		// set card in hand
+		setcard($(this), draggedcard);
+		// select card in deck
+		$(".deck").filter(cardFilter(draggedcard)).addClass("selected");
+		// update current
+		next($(this));
+	}
+
 	function addHand (t, mins, maxs, isboard) {
 		var tr = t.insertRow(-1);
 		$(tr).data("mins", mins);
@@ -825,6 +844,9 @@
 			$(td).addClass("hand card");
 			$(td).click(handtdclicked);
 			$(td).dblclick(handtdclicked2);
+			$(td).droppable({
+				drop: handcarddropped
+			});
 		}
 		if (!isboard) {
 			var td1 = tr.insertCell(-1);
@@ -866,12 +888,12 @@
 	}
 
 	function getcards () {
-		var hs = { board: [], hands: [], blockers: [] };
+		var hands = { board: [], hands: [], blockers: [] };
 		$(".handrow").each(function(i,tr) {
-			$(tr).removeClass("error");
+			$(tr).removeClass("error"); // XXX
 			var mins = $(tr).data("mins");
 			var maxs = $(tr).data("maxs");
-			var isb = $(tr).data("isb");
+			var isboard = $(tr).data("isb");
 			var h = [];
 			$(tr).find(".hand").each(function(i,e){
 				var c = getcard(e);
@@ -880,28 +902,28 @@
 				}
 			});
 			//console.log("mins=" + mins + " maxs=" + maxs + " isb=" + isb + " h=" + h);
-			if (isb || h.length > 0) {
+			if (isboard || h.length > 0) {
 				// board can be length 0, otherwise must be at least mins
-				if ((isb && h.length === 0) || h.length >= mins) {
-					if (hs !== null) {
-						if (isb) {
-							hs.board = h;
+				if ((isboard && h.length === 0) || h.length >= mins) {
+					if (hands !== null) {
+						if (isboard) {
+							hands.board = h;
 						} else {
-							hs.hands.push(h);
+							hands.hands.push(h);
 						}
 					}
 				} else {
-					$(tr).addClass("error");
-					hs = null;
+					$(tr).addClass("error"); // XXX
+					hands = null;
 				}
 			}
 		});
-		return hs;
+		return hands;
 	}
 
+	/** filter that selects table cells by card */
 	function cardFilter (c) {
 		return function () {
-			//console.log("cf c=" + c + " data=" + $(this).data("card"));
 			return $(this).data("card") === c;
 		};
 	}
@@ -940,18 +962,18 @@
 			$(dtd).addClass("selected");
 
 			// update hand card
-			//chtd.html("<span>" + formatCard(c) + "</span>");
-			//chtd.data("card", c);
 			setcard(htd, c);
 
 			// select next hand card
-			var handtds = $(".hand");
-			var i = handtds.index(htd);
-			handtds.eq(i).removeClass("current");
-			if (i+1 < handtds.length) {
-				$(handtds.eq(i+1)).addClass("current");
-			}
+			next(htd);
 		}
+	}
+
+	/** advance current hand card */
+	function next (htd) {
+		var handtds = $(".hand").removeClass("current");
+		var i = handtds.index(htd);
+		handtds.eq((i+1)%handtds.length).addClass("current");
 	}
 
 	/** set or clear card on jquery object */
@@ -1113,13 +1135,7 @@
 		}
 	}
 
-	/** init ... */
-	$(function() {
-		$(document).tooltip({
-      		track: true,
-      		content: function() { return $(this).attr('title'); }
-    	});
-
+	function createDeck () {
 		var dt = $("#deck").get(0);
 		for (var n = 0; n < deckArr.length; n++) {
 			var c = deckArr[n];
@@ -1127,6 +1143,7 @@
 				var tr = dt.insertRow(-1);
 			}
 			var td = tr.insertCell(-1);
+			$(td).draggable({ helper: "clone" });
 			$(td).click(function(e) {
 				decktdclicked(e.currentTarget);
 			});
@@ -1134,6 +1151,16 @@
 			setcard($(td), c);
 			$(td).addClass("deck card");
 		}
+	}
+
+	/** init ... */
+	$(function() {
+		$(document).tooltip({
+      		track: true,
+      		content: function() { return $(this).attr('title'); }
+    	});
+
+		createDeck();
 
 		window.onerror = function(e) {
 			alert("error: " + e);
