@@ -1,4 +1,7 @@
-function Eq () {
+/** equity functions */
+var eq = (function(){
+
+    /** https://github.com/alexyz/pokerjs */
 	"use strict";
 
     // poker hand values are represented by 7 x 4 bit values (28 bits total):
@@ -9,38 +12,38 @@ function Eq () {
 	// akqjt98765432a ->
 	// edcba987654321
 
-	var deckArr = [
+	var deckArr = Object.freeze([
 		"ec", "dc", "cc", "bc", "ac", "9c", "8c", "7c", "6c", "5c", "4c", "3c", "2c",
 		"ed", "dd", "cd", "bd", "ad", "9d", "8d", "7d", "6d", "5d", "4d", "3d", "2d",
 		"eh", "dh", "ch", "bh", "ah", "9h", "8h", "7h", "6h", "5h", "4h", "3h", "2h",
 		"es", "ds", "cs", "bs", "as", "9s", "8s", "7s", "6s", "5s", "4s", "3s", "2s",
-	];
+	]);
 
     /** high card value of straight */
-    var straights = [
+    var straights = Object.freeze([
         // wheel to a-high
         0xe5432, 0x65432, 0x76543, 0x87654, 0x98765,
         0xa9876, 0xba987, 0xcba98, 0xdcba9, 0xedcba
-    ];
+    ]);
 
 	/** array of parse int 16 value to human readable face */
-	var faces = [
+	var faces = Object.freeze([
 		null, "A", "2", "3",
 		"4", "5", "6", "7",
 		"8", "9", "T", "J",
 		"Q", "K", "A"
-	];
+	]);
 
     /** suit symbols */
-	var suits = {
+	var suits = Object.freeze({
 		d: "\u2666",
 		c: "\u2663",
 		h: "\u2665",
 		s: "\u2660"
-	};
+	});
 
     /** high value ranks */
-	var ranks = {
+	var ranks = Object.freeze({
 		HC: 0,
 		P: 0x100000,
 		TP: 0x200000,
@@ -51,16 +54,14 @@ function Eq () {
 		FK: 0x700000,
 		SF: 0x800000,
         ZZ: 0xffffff
-	};
-
-    var WHEEL = 0xe5432;
+	});
 
     /** valuation types */
-    var types = {
+    var types = Object.freeze({
         HIGH: 0,
         AFLOW: 0xe000000,
         DSLOW: 0xf000000
-    };
+    });
 
 	function rankname (v) {
         switch (rank(v)) {
@@ -75,7 +76,7 @@ function Eq () {
             case ranks.SF: return "Straight Flush";
         }
         throw "rankname " + v;
-	};
+	}
 
 	/** throw exception if hand is not 5 unique cards */
 	function validateHand (hand) {
@@ -151,29 +152,29 @@ function Eq () {
 		for (var n = 7; n >= 0; n--) {
 			var k = (ch >> (n * 4)) & 0xf; // count
             var f = n + 8; // face
-            if (k == 0) {
+            if (k === 0) {
                 continue;
-            } else if (k == 1) {
+            } else if (k === 1) {
                 hc = (hc << 4) | f;
-            } else if (k == 2) {
+            } else if (k === 2) {
                 pa = (pa << 4) | f;
-            } else if (k == 3) {
+            } else if (k === 3) {
                 tk = f;
-            } else if (k == 4) {
+            } else if (k === 4) {
                 fk = f;
             }
 		}
         for (var n = 7; n >= 0; n--) { // n = face
 			var k = (cl >> (n * 4)) & 0xf; // count
-            if (k == 0) {
+            if (k === 0) {
                 continue;
-            } else if (k == 1) {
+            } else if (k === 1) {
                 hc = (hc << 4) | n;
-            } else if (k == 2) {
+            } else if (k === 2) {
                 pa = (pa << 4) | n;
-            } else if (k == 3) {
+            } else if (k === 3) {
                 tk = n;
-            } else if (k == 4) {
+            } else if (k === 4) {
                 fk = n;
             }
 		}
@@ -197,12 +198,13 @@ function Eq () {
 	/** deuce to seven low value */
 	function dsLowValue (hand) {
 		var v = highValue(hand);
+        var wheel = 0xe5432;
 		if (v === (ranks.S | 5)) {
 			// convert 5-high straight to a5432-high
-			v = WHEEL;
-		} else if (v === (ranks.SF | WHEEL)) {
+			v = wheel;
+		} else if (v === (ranks.SF | wheel)) {
 			// convert 5-high straight flush to a5432-high flush
-			v = ranks.F | WHEEL;
+			v = ranks.F | wheel;
 		}
         // invert value so lower values are higher
 		return types.DSLOW | (ranks.ZZ - v);
@@ -251,7 +253,7 @@ function Eq () {
 
     /** return human readable string rep of card */
 	function formatCard (c) {
-		return faces[parseInt(c[0], 16)] + suits[c[1]];
+		return faces[faceValue(c[0])] + suits[c[1]];
 	}
 
     /** return human readable description of value */
@@ -261,7 +263,7 @@ function Eq () {
 		}
         if (v > ranks.ZZ) {
             // convert low value to high value
-            v = ranks.ZZ - (v & ranks.ZZ)
+            v = ranks.ZZ - (v & ranks.ZZ);
         }
 		var c1 = faces[v & 0xf];
 		var c2 = faces[(v >> 4) & 0xf];
@@ -310,9 +312,9 @@ function Eq () {
 
 	function drawValueImpl (board, hand, valuef) {
 		// board=0,1 hand=1-5 (ignore board if hand 5)
-		if (hand.length == 5) {
+		if (hand.length === 5) {
 			return valuef(hand);
-		} else if (board.length == 1 && hand.length == 4) {
+		} else if (board.length === 1 && hand.length === 4) {
 			// allow 1 card from board for outs
 			var hand2 = hand.slice(0);
 			hand2[4] = board[0];
@@ -325,14 +327,14 @@ function Eq () {
 	function drawEquity (board, hands, blockers, game) {
 		console.log("draw equity");
 		if (board.length > 0 || hands.length < 2) throw "draw equity board=" + board + " hands=" + hands;
-		var deck = remove(deckArr.slice(0), board, hands, blockers);
+		var decka = remove(deck(), board, hands, blockers);
 		var unknown = 0;
 		for (var n = 0; n < hands.length; n++) {
 			unknown = unknown + (5 - hands[n].length);
 		}
 		// TODO u=1,2 exact draw
 		console.log("unknown=" + unknown);
-		var dealer = unknown == 0 ? new FixedBoard() : new RandomDraw(deck, hands, 1000);
+		var dealer = unknown === 0 ? new FixedBoard() : new RandomDraw(decka, hands, 1000);
 		return equityImpl(board, hands, dealer, game.valueFunc, null);
 	}
 
@@ -357,7 +359,7 @@ function Eq () {
 				hands[n][n2] = this.deck[i++];
 			}
 		}
-		if (i == 0) throw "random draw: no draws on board=" + board + " hands=" + hands;
+		if (i === 0) throw "random draw: no draws on board=" + board + " hands=" + hands;
 		//log("rd board=" + board + " hands=" + JSON.stringify(hands));
 		this.n++;
 	};
@@ -365,17 +367,19 @@ function Eq () {
 	/** holdem and omaha equity */
 	function holdemEquity (board, hands, blockers, game) {
 		console.log("holdem equity");
-		if (hands.length == 0 || (board.length > 0 && (board.length < 3 || board.length > 5))) throw "heequity";
-		var deck = remove(deckArr.slice(0), board, hands, blockers);
+		if (hands.length === 0 || (board.length > 0 && (board.length < 3 || board.length > 5))) {
+            throw "heequity";
+        }
+		var decka = remove(deck(), board, hands, blockers);
 		var dealf;
-		if (board.length == 0) {
-			dealf = new RandomBoard(deck, 1000);
-		} else if (board.length == 5) {
+		if (board.length === 0) {
+			dealf = new RandomBoard(decka, 1000);
+		} else if (board.length === 5) {
 			dealf = new FixedBoard();
-		} else if (board.length == 3) {
-			dealf = new Board3(deck);
-		} else if (board.length == 4) {
-			dealf = new Board4(deck);
+		} else if (board.length === 3) {
+			dealf = new Board3(decka);
+		} else if (board.length === 4) {
+			dealf = new Board4(decka);
 		} else {
 			throw "he";
 		}
@@ -407,7 +411,7 @@ function Eq () {
 	}
 
 	FixedBoard.prototype.hasnext = function () {
-		return this.n == 0;
+		return this.n === 0;
 	};
 
 	FixedBoard.prototype.next = function (board, hands) {
@@ -433,7 +437,7 @@ function Eq () {
 		//log("b3 n=" + this.n1 + "," + this.n2);
 		board[3] = this.deck[this.n1];
 		board[4] = this.deck[this.n2++];
-		if (this.n2 == this.deck.length) {
+		if (this.n2 === this.deck.length) {
 			this.n1++;
 			this.n2 = this.n1+1;
 		}
@@ -635,7 +639,7 @@ function Eq () {
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update the high half only
 				var hle = hlequities[n];
-				var xe = lmaxcount == 0 ? hle.high : hle.highhalf;
+				var xe = lmaxcount === 0 ? hle.high : hle.highhalf;
 				var le = hle.lowhalf;
 
 				if (hvals[n] === hmax) {
@@ -650,7 +654,7 @@ function Eq () {
 				}
 
 				if (lmaxcount > 0) {
-					if (lvals[n] == lmax) {
+					if (lvals[n] === lmax) {
 						if (lmaxcount === 1) {
 							le.win++;
 						} else {
@@ -744,7 +748,7 @@ function Eq () {
 		return max;
 	}
 
-	var games = {
+	var games = Object.freeze({
 		holdem: {
 			holdemBoard: true, 
 			handMin: 2, 
@@ -779,7 +783,7 @@ function Eq () {
 			equityFunc: drawEquity, 
 			valueFunc: lowDrawValue
 		}
-	};
+	});
 
    function deck() {
         return deckArr.slice(0);
@@ -794,48 +798,54 @@ function Eq () {
         return h;
     }
 
+    // test
+
+    (function(){
+        var rs = [];
+        while (rs.length < 9) {
+            var h = eq.randomHand();
+            var v1 = eq.highValue(h);
+            var v2 = eq.afLowValue(h);
+            var v3 = eq.dsLowValue(h);
+            var r = eq.rank(v1);
+            if (rs.indexOf(r) < 0) {
+                rs.push(r);
+                var v1s = (" " + v1.toString(16)).slice(-6);
+                var v3s = (" " + v3.toString(16)).slice(-6);
+                var v1d = eq.valueDesc(v1);
+                var v3d = eq.valueDesc(v3);
+                console.log(eq.formatHand(h) + " hv = " + v1d + " ds = " + v3d);
+            }
+        }
+        rs.length = 0; // 54, 65, 64, 76, 75, 74, 87, 86, 85, 84
+        while (rs.length < 10) {
+            var h = eq.randomHand();
+            var v1 = eq.highValue(h);
+            var v2 = eq.afLowValue(h);
+            if (v2) {
+                var x = v2 & 0xff000;
+                if (rs.indexOf(x) < 0) {
+                    var v1d = eq.valueDesc(v1);
+                    var v2d = eq.valueDesc(v2);
+                    console.log(eq.formatHand(h) + " hv = " + v2d + " af = " + v1d);
+                    rs.push(x);
+                }
+            }
+        }
+    });
+
     // exports
 
-    this.randomHand = randomHand;
-    this.formatHand = formatHand;
-    this.highValue = highValue;
-    this.valueDesc = valueDesc;
-    this.pairValue = pairValue;
-    this.rank = rank;
-    this.afLowValue = afLowValue;
-    this.dsLowValue = dsLowValue;
-}
+    var m = {};
+    m.formatCard = formatCard;
+    m.valueDesc = valueDesc;
+    m.rank = rank;
+    m.deck = deck;
+    m.shuffle = shuffle;
+    m.games = games;
+    m.randomInt = randomInt;
+    m.valueDesc = valueDesc;
+    m.rankname = rankname;
+    return Object.freeze(m);
 
-var eq = new Eq();
-var rs = [];
-while (rs.length < 9) {
-    var h = eq.randomHand();
-    var v1 = eq.highValue(h);
-    var v2 = eq.afLowValue(h);
-    var v3 = eq.dsLowValue(h);
-    var r = eq.rank(v1);
-    if (rs.indexOf(r) < 0) {
-        rs.push(r);
-        var v1s = (" " + v1.toString(16)).slice(-6);
-        var v3s = (" " + v3.toString(16)).slice(-6);
-        var v1d = eq.valueDesc(v1);
-        var v3d = eq.valueDesc(v3);
-        console.log(eq.formatHand(h) + " hv = " + v1d + " ds = " + v3d);
-        if (v1d != v3d) throw "v1d!=v3d";
-    }
-}
-rs.length = 0; // 54, 65, 64, 76, 75, 74, 87, 86, 85, 84
-while (rs.length < 10) {
-    var h = eq.randomHand();
-    var v1 = eq.highValue(h);
-    var v2 = eq.afLowValue(h);
-    if (v2) {
-        var x = v2 & 0xff000;
-        if (rs.indexOf(x) < 0) {
-            var v1d = eq.valueDesc(v1);
-            var v2d = eq.valueDesc(v2);
-            console.log(eq.formatHand(h) + " hv = " + v2d + " af = " + v1d);
-            rs.push(x);
-        }
-    }
-}
+})();
