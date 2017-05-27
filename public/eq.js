@@ -63,6 +63,8 @@ var eq = (function(){
         DSLOW: 0xf000000
     });
 
+	var htemp = new Array(5);
+
 	function rankname (v) {
         switch (rank(v)) {
             case ranks.HC: return "High Card";
@@ -81,15 +83,15 @@ var eq = (function(){
 	/** throw exception if hand is not 5 unique cards */
 	function validateHand (hand) {
 		if (hand.length !== 5) {
-			throw "value invalid hand len " + hand + ", " + hand.length;
+			throw "invalid hand len " + hand + " - " + hand.length;
 		}
 		for (var n = 0; n < 5; n++) {
 			if (typeof hand[n] !== "string" || hand[n].length !== 2) {
-				throw "value invalid card " + hand;
+				throw "invalid card " + hand;
 			}
 			for (var n2 = n+1; n2 < 5; n2++) {
 				if (hand[n] === hand[n2]) {
-					throw "value duplicate card " + hand;
+					throw "duplicate card " + hand;
 				}
 			}
 		}
@@ -316,9 +318,12 @@ var eq = (function(){
 			return valuef(hand);
 		} else if (board.length === 1 && hand.length === 4) {
 			// allow 1 card from board for outs
-			var hand2 = hand.slice(0);
-			hand2[4] = board[0];
-			return valuef(hand);
+			for (var n = 0; n < 4; n++) {
+				htemp[n] = hand[n];
+			}
+			htemp[4] = board[0];
+			// safari does TCO, if this fails you won't see drawValueImpl in stack trace
+			return valuef(htemp);
 		} else {
 			return null;
 		}
@@ -330,22 +335,32 @@ var eq = (function(){
 		if (board.length > boardmax || hands.length < 2) throw "draw/stud equity board=" + board + " hands=" + hands;
 		var decka = remove(deck(), board, hands, blockers);
 		var unknown = 0;
+		var min = 10;
 		for (var n = 0; n < hands.length; n++) {
 			unknown = unknown + (game.handMax - hands[n].length);
+			min = Math.min(hands[n].length, min);
 		}
 		// TODO u=1,2 exact draw
-		console.log("unknown=" + unknown);
-		var dealer = unknown === 0 ? new FixedBoard() : new RandomDraw(decka, hands, 1000, game.handMax);
+		console.log("unknown=" + unknown + " min=" + min);
+		var dealer;
+		if (unknown === 0) {
+			dealer = new FixedBoard();
+		 } else {
+			 // test outs if at least 1 unknown and all hands have at least 4 cards
+			 dealer = new RandomDraw(decka, hands, 1000, game.handMax, min >= 4);
+		 }
 		return equityImpl(board, hands, dealer, game.valueFunc, game.lowValueFunc);
 	}
 
-	function RandomDraw (deck, hands, max, handlen) {
+	function RandomDraw (deck, hands, max, handlen, outs) {
 		this.n = 0;
 		this.max = max;
 		// need original hand to know how many to draw
 		this.hands = hands;
 		this.deck = deck;
 		this.handlen = handlen;
+		this.outs = outs;
+		this.o = 0;
 	}
 
 	RandomDraw.prototype.hasnext = function () {
@@ -367,6 +382,16 @@ var eq = (function(){
 		if (i === 0) throw "random draw: no draws on board=" + board + " hands=" + hands;
 		//log("rd board=" + board + " hands=" + JSON.stringify(hands));
 		this.n++;
+	};
+
+	RandomDraw.prototype.hasouts = function () {
+		return this.outs && this.o < this.deck.length;
+	};
+
+	RandomDraw.prototype.nextout = function (board) {
+		board.length = 1;
+		board[0] = this.deck[this.o++];
+		return board[0];
 	};
 
 	/** holdem and omaha equity */
@@ -429,7 +454,6 @@ var eq = (function(){
 		this.n1 = 0;
 		this.n2 = 1;
 		this.exact = true;
-		this.outs = true;
 		this.o = 0;
 	}
 
@@ -518,7 +542,6 @@ var eq = (function(){
 	/** calculate high/low equity, returns array of HLEquity */
 	function equityImpl (board, hands, dealer, hvaluef, lvaluef) {
 		console.log("equity impl b=" + board + " h=" + hands);
-
 		var hleqs = [];
 
 		// get current values, create equity objects
@@ -563,7 +586,10 @@ var eq = (function(){
 
 		// get the outs for next street only
 		// even for draw games, pretend there is a board to check outs
-		while (dealer.outs && dealer.hasouts()) {
+		// he street 3,4 has outs
+		// stud streets 4,5,6 has outs (not last street and 1 more card makes at least 5)
+		// draw has outs if 4 cards in hand
+		while (dealer.hasouts && dealer.hasouts()) {
 			// apply out to board
 			var c = dealer.nextout(b);
 
@@ -594,16 +620,6 @@ var eq = (function(){
 				}
 			}
 		}
-
-		// get equities...
-		runEqs(hleqs, board, hands, dealer, hvaluef, lvaluef);
-		
-		return hleqs;
-	}
-
-	/** update the eqs with the simulation */
-	function runEqs (hlequities, board, hands, dealer, hvaluef, lvaluef) {
-		var hvals = [], lvals = [];
 
 		// copy board/hands before mutate
 		board = board.slice(0);
@@ -643,7 +659,7 @@ var eq = (function(){
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update the high half only
-				var hle = hlequities[n];
+				var hle = hleqs[n];
 				var xe = lmaxcount === 0 ? hle.high : hle.highhalf;
 				var le = hle.lowhalf;
 
@@ -673,6 +689,8 @@ var eq = (function(){
 				xe.count++;
 			}
 		}
+
+		return hleqs;
 	}
 
 	function omahaValue (board, hand) {
@@ -683,11 +701,9 @@ var eq = (function(){
 		return omahaValueImpl(board, hand, afLow8Value);
 	}
 
-	var a = new Array(5);
-
 	/** return omaha value (maybe null) */
 	function omahaValueImpl (board, hand, valuef) {
-		if (board.length > 5 || hand.length < 2 || hand.length > 4 || a.length != 5) {
+		if (board.length > 5 || hand.length < 2 || hand.length > 4) {
             throw "omaha value board=" + board + " hand=" + hand;
         }
 		if (board.length < 3) {
@@ -703,12 +719,12 @@ var eq = (function(){
 				for (var b1 = 0; b1 < board.length; b1++) {
 					for (var b2 = b1+1; b2 < board.length; b2++) {
 						for (var b3 = b2+1; b3 < board.length; b3++) {
-							a[0] = hand[h1];
-							a[1] = hand[h2];
-							a[2] = board[b1];
-							a[3] = board[b2];
-							a[4] = board[b3];
-							var v = valuef(a);
+							htemp[0] = hand[h1];
+							htemp[1] = hand[h2];
+							htemp[2] = board[b1];
+							htemp[3] = board[b2];
+							htemp[4] = board[b3];
+							var v = valuef(htemp);
 							// low value is null if not qualified
 							if (v && v > max) {
 								max = v;
@@ -722,7 +738,7 @@ var eq = (function(){
 	}
 
 	function holdemValue (board, hand) {
-		if (board.length > 5 || hand.length !== 2 || a.length != 5) {
+		if (board.length > 5 || hand.length !== 2) {
 			throw "hevalue board=" + board + " hand=" + hand;
 		}
 		if (board.length < 3) {
@@ -737,13 +753,13 @@ var eq = (function(){
 				for (var h3 = h2+1; h3 < len; h3++) {
 					for (var h4 = h3+1; h4 < len; h4++) {
 						for (var h5 = h4+1; h5 < len; h5++) {
-							a[0] = h1 < 2 ? hand[h1] : board[h1 - 2];
-							a[1] = h2 < 2 ? hand[h2] : board[h2 - 2];
-							a[2] = board[h3 - 2];
-							a[3] = board[h4 - 2];
-							a[4] = board[h5 - 2];
+							htemp[0] = h1 < 2 ? hand[h1] : board[h1 - 2];
+							htemp[1] = h2 < 2 ? hand[h2] : board[h2 - 2];
+							htemp[2] = board[h3 - 2];
+							htemp[3] = board[h4 - 2];
+							htemp[4] = board[h5 - 2];
 							// holdem only played high
-							var v = highValue(a);
+							var v = highValue(htemp);
 							if (v > max) {
 								max = v;
 							}
@@ -765,7 +781,7 @@ var eq = (function(){
 	}
 
 	function studValueImpl (board, hand, valuef) {
-		if (board.length > 1 || hand.length < 2 || a.length != 5) {
+		if (board.length > 1 || hand.length < 2) {
 			throw "studvalue board=" + board + " hand=" + hand;
 		}
 		if (hand.length < 5) {
@@ -774,18 +790,19 @@ var eq = (function(){
 		// pick 5/7 from hand, 0/1 from board
 		//var a = [];
 		var max = 0;
-		var len = hand.length + board.length;
+		// if already have 7 card hand ignore board (used for outs)
+		var len = Math.min(hand.length + board.length, 7);
 		for (var h1 = 0; h1 < len; h1++) {
 			for (var h2 = h1+1; h2 < len; h2++) {
 				for (var h3 = h2+1; h3 < len; h3++) {
 					for (var h4 = h3+1; h4 < len; h4++) {
 						for (var h5 = h4+1; h5 < len; h5++) {
-							a[0] = hand[h1];
-							a[1] = hand[h2];
-							a[2] = hand[h3];
-							a[3] = hand[h4];
-							a[4] = h5 < hand.length ? hand[h5] : board[0];
-							var v = valuef(a);
+							htemp[0] = hand[h1];
+							htemp[1] = hand[h2];
+							htemp[2] = hand[h3];
+							htemp[3] = hand[h4];
+							htemp[4] = h5 < hand.length ? hand[h5] : board[0];
+							var v = valuef(htemp);
 							if (v > max) {
 								max = v;
 							}
@@ -794,6 +811,7 @@ var eq = (function(){
 				}
 			}
 		}
+		return max;
 	}
 
 	var games = Object.freeze({
