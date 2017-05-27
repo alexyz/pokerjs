@@ -11,6 +11,8 @@ var eq = (function(){
 	// 5 = most significant card (if any) ... 1 = least significant card
 	// akqjt98765432a ->
 	// edcba987654321
+
+	var cardre = /^[1-9a-e][cdhs]$/;
 	
 	var deckArr = Object.freeze([
 	"ec", "dc", "cc", "bc", "ac", "9c", "8c", "7c", "6c", "5c", "4c", "3c", "2c",
@@ -86,7 +88,7 @@ var eq = (function(){
 			throw "invalid hand len " + hand + " - " + hand.length;
 		}
 		for (var n = 0; n < 5; n++) {
-			if (typeof hand[n] !== "string" || hand[n].length !== 2) {
+			if (typeof hand[n] !== "string" || !cardre.test(hand[n])) {
 				throw "invalid card " + hand;
 			}
 			for (var n2 = n+1; n2 < 5; n2++) {
@@ -99,13 +101,13 @@ var eq = (function(){
 	
 	/** return rank of hand (a constant in ranks object) */
 	function rank (v) {
-		return v & 0xf00000;
+		return toHigh(v) & 0xf00000;
 	}
 	
 	/** hi value */
 	function highValue (hand) {
 		validateHand(hand);
-		var v = pairValue(hand);
+		var v = pairValue(hand, true);
 		if (rank(v) === ranks.HC) {
 			var f = isFlush(hand);
 			var s = straights.indexOf(v); // 0 = 5 high str
@@ -132,17 +134,20 @@ var eq = (function(){
 		return true;
 	}
 	
-	function faceValue (c) {
-		return parseInt(c[0], 16);
+	function faceValue (c, ah) {
+		// returns 2-15
+		var v = parseInt(c[0], 16);
+		// convert ace high to ace low
+		return v != 0xe || ah ? v : 1;
 	}
 	
 	/** return pair/high card value */
-	function pairValue (hand) {
+	function pairValue (hand, ah) {
 		// high=(-, a, k, q, j, t, 9, 8)
 		// low= (7, 6, 5, 4, 3, 2, a, -)
 		var cl = 0, ch = 0;
 		for (var n = 0; n < hand.length; n++) {
-			var k = faceValue(hand[n]);
+			var k = faceValue(hand[n], ah);
 			if (k < 8) {
 				cl += (1 << (k * 4));
 			} else {
@@ -154,9 +159,7 @@ var eq = (function(){
 		for (var n = 7; n >= 0; n--) {
 			var k = (ch >> (n * 4)) & 0xf; // count
 			var f = n + 8; // face
-			if (k === 0) {
-				continue;
-			} else if (k === 1) {
+			if (k === 1) {
 				hc = (hc << 4) | f;
 			} else if (k === 2) {
 				pa = (pa << 4) | f;
@@ -168,9 +171,7 @@ var eq = (function(){
 		}
 		for (var n = 7; n >= 0; n--) { // n = face
 			var k = (cl >> (n * 4)) & 0xf; // count
-			if (k === 0) {
-				continue;
-			} else if (k === 1) {
+			if (k === 1) {
 				hc = (hc << 4) | n;
 			} else if (k === 2) {
 				pa = (pa << 4) | n;
@@ -216,18 +217,22 @@ var eq = (function(){
 	function afLow8Value (hand) {
 		validateHand(hand);
 		// ignore str/fl
-		var v = pairValue(hand);
+		var v = pairValue(hand, false);
 		if (rank(v) === ranks.HC) {
-			if (((v >> 16) & 0xf) === 0xe) {
-				// change ace high to ace low
-				v = ((v & 0xffff) << 4) | 0xe;
-			}
 			if (((v >> 16) & 0xf) <= 8) {
 				// invert so lower values are higher
 				return types.AFLOW | (ranks.ZZ - v);
 			}
 		}
 		return null;
+	}
+	
+	/** ace to five low unqualified */
+	function afLowValue (hand) {
+		validateHand(hand);
+		var v = pairValue(hand, false);
+		// invert so lower values are higher
+		return types.AFLOW | (ranks.ZZ - v);
 	}
 	
 	function randomInt (n) {
@@ -255,7 +260,15 @@ var eq = (function(){
 	
 	/** return human readable string rep of card */
 	function formatCard (c) {
-		return faces[faceValue(c[0])] + suits[c[1]];
+		return faces[faceValue(c[0], true)] + suits[c[1]];
+	}
+
+	/** convert low value to high value */
+	function toHigh (v) {
+		if (v > ranks.ZZ) {
+			v = ranks.ZZ - (v & ranks.ZZ);
+		}
+		return v;
 	}
 	
 	/** return human readable description of value */
@@ -263,10 +276,7 @@ var eq = (function(){
 		if (!v) {
 			return "?";
 		}
-		if (v > ranks.ZZ) {
-			// convert low value to high value
-			v = ranks.ZZ - (v & ranks.ZZ);
-		}
+		v = toHigh(v);
 		var c1 = faces[v & 0xf];
 		var c2 = faces[(v >> 4) & 0xf];
 		var c3 = faces[(v >> 8) & 0xf];
@@ -773,8 +783,11 @@ var eq = (function(){
 	}
 	
 	function studLow8Value (board, hand) {
-		// qualified
 		return studValueImpl(board, hand, afLow8Value);
+	}
+
+	function razzValue (board, hand) {
+		return studValueImpl(board, hand, afLowValue);
 	}
 	
 	function studValueImpl (board, hand, valuef) {
@@ -834,7 +847,7 @@ var eq = (function(){
 			valueFunc: omahaValue,
 			lowValueFunc: omahaLowValue
 		},
-		highdraw: {
+		draw: {
 			type: 'dr',
 			handMin: 1, 
 			handMax: 5, 
@@ -854,6 +867,21 @@ var eq = (function(){
 			handMax: 7, 
 			equityFunc: drawEquity, 
 			valueFunc: studValue
+		},
+		studhilo: {
+			type: 'st',
+			handMin: 2, 
+			handMax: 7, 
+			equityFunc: drawEquity, 
+			valueFunc: studValue,
+			lowValueFunc: studLow8Value
+		},
+		razz: {
+			type: 'st',
+			handMin: 2, 
+			handMax: 7, 
+			equityFunc: drawEquity, 
+			valueFunc: razzValue
 		}
 	});
 	
