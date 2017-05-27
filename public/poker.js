@@ -26,7 +26,7 @@
 		$(".deck").removeClass("selected");
 		$("#board .handrow").remove();
 		var bt = $("#board").get(0);
-		if (g.holdemBoard) {
+		if (g.type == 'he') {
 			var btr = addHand(bt, 3, 5, true);
 		}
 
@@ -259,7 +259,7 @@
 		var players = eq.randomInt(3) + 2;
 		var deck = eq.shuffle(eq.deck());
 		var g = getgame();
-		if (g.holdemBoard) {
+		if (g.type == 'he') {
 			var street = eq.randomInt(4);
 			if (street > 0) {
 				var board = $("#board").find(".hand");
@@ -271,9 +271,16 @@
 			}
 		}
 		var handrows = $("#hands .handrow");
-		//console.log("handrows.length=" + handrows.length);
+		var studlen = eq.randomInt(g.handMax - g.handMin + 1) + g.handMin;
 		for (var n = 0; n < players; n++) {
-			var handlen = eq.randomInt(g.handMax - g.handMin + 1) + g.handMin;
+			// pick number of cards in hand according to game
+			var handlen;
+			switch (g.type) {
+				case 'he': handlen = g.handMax; break;
+				case 'st': handlen = studlen; break;
+				case 'dr': handlen = eq.randomInt(g.handMax - g.handMin + 1) + g.handMin; break;
+				default: throw "unknown type " + g.type;
+			}
 			var handrow = handrows.eq(n).find(".hand");
 			for (var n2 = 0; n2 < handlen; n2++) {
 				handrow.eq(n2).each(function() {

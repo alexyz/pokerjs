@@ -81,15 +81,15 @@ var eq = (function(){
 	/** throw exception if hand is not 5 unique cards */
 	function validateHand (hand) {
 		if (hand.length !== 5) {
-			throw "value " + hand;
+			throw "value invalid hand len " + hand + ", " + hand.length;
 		}
 		for (var n = 0; n < 5; n++) {
 			if (typeof hand[n] !== "string" || hand[n].length !== 2) {
-				throw "value " + hand;
+				throw "value invalid card " + hand;
 			}
 			for (var n2 = n+1; n2 < 5; n2++) {
 				if (hand[n] === hand[n2]) {
-					throw "value " + hand;
+					throw "value duplicate card " + hand;
 				}
 			}
 		}
@@ -211,7 +211,7 @@ var eq = (function(){
 	}
 
 	/** 8 or better low value (qualified, maybe null) */
-	function afLowValue (hand) {
+	function afLow8Value (hand) {
 		validateHand(hand);
         // ignore str/fl
 		var v = pairValue(hand);
@@ -325,25 +325,27 @@ var eq = (function(){
 	}
 
 	function drawEquity (board, hands, blockers, game) {
-		console.log("draw equity");
-		if (board.length > 0 || hands.length < 2) throw "draw equity board=" + board + " hands=" + hands;
+		console.log("draw/stud equity");
+		var boardmax = game.type == 'st' ? 1 : 0;
+		if (board.length > boardmax || hands.length < 2) throw "draw/stud equity board=" + board + " hands=" + hands;
 		var decka = remove(deck(), board, hands, blockers);
 		var unknown = 0;
 		for (var n = 0; n < hands.length; n++) {
-			unknown = unknown + (5 - hands[n].length);
+			unknown = unknown + (game.handMax - hands[n].length);
 		}
 		// TODO u=1,2 exact draw
 		console.log("unknown=" + unknown);
-		var dealer = unknown === 0 ? new FixedBoard() : new RandomDraw(decka, hands, 1000);
-		return equityImpl(board, hands, dealer, game.valueFunc, null);
+		var dealer = unknown === 0 ? new FixedBoard() : new RandomDraw(decka, hands, 1000, game.handMax);
+		return equityImpl(board, hands, dealer, game.valueFunc, game.lowValueFunc);
 	}
 
-	function RandomDraw (deck, hands, max) {
+	function RandomDraw (deck, hands, max, handlen) {
 		this.n = 0;
 		this.max = max;
 		// need original hand to know how many to draw
 		this.hands = hands;
 		this.deck = deck;
+		this.handlen = handlen;
 	}
 
 	RandomDraw.prototype.hasnext = function () {
@@ -354,8 +356,11 @@ var eq = (function(){
 		shuffle(this.deck);
 		var i = 0;
 		for (var n = 0; n < this.hands.length; n++) {
-			for (var n2 = this.hands[n].length; n2 < 5; n2++) {
-				// update parameter not field
+			for (var n2 = this.hands[n].length; n2 < this.handlen; n2++) {
+				if (this.deck.length < i) {
+					throw "random draw insufficient cards";
+				}
+				// update hands parameter not field
 				hands[n][n2] = this.deck[i++];
 			}
 		}
@@ -675,12 +680,14 @@ var eq = (function(){
 	}
 
 	function omahaLowValue (board, hand) {
-		return omahaValueImpl(board, hand, afLowValue);
+		return omahaValueImpl(board, hand, afLow8Value);
 	}
+
+	var a = new Array(5);
 
 	/** return omaha value (maybe null) */
 	function omahaValueImpl (board, hand, valuef) {
-		if (board.length > 5 || hand.length < 2 || hand.length > 4) {
+		if (board.length > 5 || hand.length < 2 || hand.length > 4 || a.length != 5) {
             throw "omaha value board=" + board + " hand=" + hand;
         }
 		if (board.length < 3) {
@@ -689,17 +696,17 @@ var eq = (function(){
 		//for (var n = 0; n < board.length; n++) if (!board[n]) throw "omaha value board card";
 		//for (var n = 0; n < hand.length; n++) if (!hand[n]) throw "omaha value hand card";
 		// pick 2 from hand, 3 from board
-		var a = [];
+		//var a = [];
 		var max = 0;
 		for (var h1 = 0; h1 < hand.length; h1++) {
-			a[0] = hand[h1];
 			for (var h2 = h1+1; h2 < hand.length; h2++) {
-				a[1] = hand[h2];
 				for (var b1 = 0; b1 < board.length; b1++) {
-					a[2] = board[b1];
 					for (var b2 = b1+1; b2 < board.length; b2++) {
-						a[3] = board[b2];
 						for (var b3 = b2+1; b3 < board.length; b3++) {
+							a[0] = hand[h1];
+							a[1] = hand[h2];
+							a[2] = board[b1];
+							a[3] = board[b2];
 							a[4] = board[b3];
 							var v = valuef(a);
 							// low value is null if not qualified
@@ -715,25 +722,25 @@ var eq = (function(){
 	}
 
 	function holdemValue (board, hand) {
-		if (board.length > 5 || hand.length !== 2) {
+		if (board.length > 5 || hand.length !== 2 || a.length != 5) {
 			throw "hevalue board=" + board + " hand=" + hand;
 		}
 		if (board.length < 3) {
 			return null;
 		}
 		// pick 0-2 from hand, 3-5 from board
-		var a = [];
+		//var a = [];
 		var max = 0;
 		var len = hand.length + board.length;
 		for (var h1 = 0; h1 < len; h1++) {
-			a[0] = h1 < 2 ? hand[h1] : board[h1 - 2];
 			for (var h2 = h1+1; h2 < len; h2++) {
-				a[1] = h2 < 2 ? hand[h2] : board[h2 - 2];
 				for (var h3 = h2+1; h3 < len; h3++) {
-					a[2] = board[h3 - 2];
 					for (var h4 = h3+1; h4 < len; h4++) {
-						a[3] = board[h4 - 2];
 						for (var h5 = h4+1; h5 < len; h5++) {
+							a[0] = h1 < 2 ? hand[h1] : board[h1 - 2];
+							a[1] = h2 < 2 ? hand[h2] : board[h2 - 2];
+							a[2] = board[h3 - 2];
+							a[3] = board[h4 - 2];
 							a[4] = board[h5 - 2];
 							// holdem only played high
 							var v = highValue(a);
@@ -748,40 +755,90 @@ var eq = (function(){
 		return max;
 	}
 
+	function studValue (board, hand) {
+		return studValueImpl(board, hand, highValue);
+	}
+
+	function studLow8Value (board, hand) {
+		// qualified
+		return studValueImpl(board, hand, afLow8Value);
+	}
+
+	function studValueImpl (board, hand, valuef) {
+		if (board.length > 1 || hand.length < 2 || a.length != 5) {
+			throw "studvalue board=" + board + " hand=" + hand;
+		}
+		if (hand.length < 5) {
+			return null;
+		}
+		// pick 5/7 from hand, 0/1 from board
+		//var a = [];
+		var max = 0;
+		var len = hand.length + board.length;
+		for (var h1 = 0; h1 < len; h1++) {
+			for (var h2 = h1+1; h2 < len; h2++) {
+				for (var h3 = h2+1; h3 < len; h3++) {
+					for (var h4 = h3+1; h4 < len; h4++) {
+						for (var h5 = h4+1; h5 < len; h5++) {
+							a[0] = hand[h1];
+							a[1] = hand[h2];
+							a[2] = hand[h3];
+							a[3] = hand[h4];
+							a[4] = h5 < hand.length ? hand[h5] : board[0];
+							var v = valuef(a);
+							if (v > max) {
+								max = v;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	var games = Object.freeze({
 		holdem: {
-			holdemBoard: true, 
+			type: 'he', 
 			handMin: 2, 
 			handMax: 2,
 			equityFunc: holdemEquity, 
 			valueFunc: holdemValue
 		},
 		omaha: { 
-			holdemBoard: true, 
+			type: 'he', 
 			handMin: 2, 
 			handMax: 4, 
 			equityFunc: holdemEquity, 
 			valueFunc: omahaValue
 		},
 		omahahilo: {
-			holdemBoard: true, 
+			type: 'he', 
 			handMin: 2, 
 			handMax: 4, 
 			equityFunc: holdemEquity, 
 			valueFunc: omahaValue,
 			lowValueFunc: omahaLowValue
 		},
-		highdraw: { 
+		highdraw: {
+			type: 'dr',
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: drawValue
 		},
-		lowdraw: { 
+		lowdraw: {
+			type: 'dr',
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: lowDrawValue
+		},
+		stud: {
+			type: 'st',
+			handMin: 2, 
+			handMax: 7, 
+			equityFunc: drawEquity, 
+			valueFunc: studValue
 		}
 	});
 
