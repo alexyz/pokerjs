@@ -3,17 +3,15 @@
 	
 	/** https://github.com/alexyz/pokerjs */
 	"use strict";
+
+	var prevGame;
 	
 	function getgameid() {
 		return $("#game").find(":selected").val();
 	}
 	
 	function getgame () {
-		var g = eq.games[getgameid()];
-		if (g) {
-			return g;
-		}
-		throw "unknown game " + text;
+		return eq.games[getgameid()];
 	}
 	
 	function gameAction (e, ui) {
@@ -23,22 +21,32 @@
 		
 		window.sessionStorage.setItem('game', id);
 		
-		$(".deck").removeClass("selected");
-		$("#board .handrow").remove();
-		var bt = $("#board").get(0);
-		if (g.type == 'he') {
-			var btr = addHand(bt, 3, 5, true);
+		if (!prevGame || prevGame.type != g.type || prevGame.handMax != g.handMax) {
+			// clear hand if game structure is different
+			
+			$(".deck").removeClass("selected");
+			$("#board .handrow").remove();
+			var bt = $("#board").get(0);
+			if (g.type == 'he') {
+				var btr = addHand(bt, 3, 5, true);
+			}
+			
+			$("#hands .handrow").remove();
+			$("#hands .handheader").attr("colspan", g.handMax);
+			var ht = $("#hands").get(0);
+			for (var n = 0; n < 4; n++) {
+				addHand(ht, g.handMin, g.handMax, false);
+			}
+			
+			// select first hand cell...
+			$(ht).find(".hand").first().addClass("current");
+
+		} else {
+			// just clear eq calc
+			clearInfoAction();
 		}
 		
-		$("#hands .handrow").remove();
-		$("#hands .handheader").attr("colspan", g.handMax);
-		var ht = $("#hands").get(0);
-		for (var n = 0; n < 4; n++) {
-			addHand(ht, g.handMin, g.handMax, false);
-		}
-		
-		// select first hand cell...
-		$(ht).find(".hand").first().addClass("current");
+		prevGame = g;
 	}
 	
 	/** card dragged from deck to hand */
@@ -242,13 +250,13 @@
 		$(".hand").each(function(i,e){
 			setcard($(e),null);
 		});
-		$(".handrow").removeData("hle");
 		$(".deck").removeClass("selected");
-		$(".value").empty();
 		clearInfoAction();
 	}
 	
 	function clearInfoAction () {
+		$(".handrow").removeData("hle");
+		$(".value").empty();
 		$("#hands").find(".info").each(function(i,e) {
 			$(e).empty().removeAttr('title');
 		});
@@ -313,10 +321,10 @@
 			var lh = hle.lowhalf;
 			var ls = hle.lowsum;
 			var t = hle.total();
-
+			
 			var title1 = "<table>" +
-				"<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>" +
-				"<tr><th>High only</th><td>" + h.win + "</td><td>" + h.tie + "</td><td>" + h.lose() + "</td><td>" + h.count + "</td></tr>";
+			"<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>" +
+			"<tr><th>High only</th><td>" + h.win + "</td><td>" + h.tie + "</td><td>" + h.lose() + "</td><td>" + h.count + "</td></tr>";
 			if (hh) {
 				title1 +=
 				"<tr><th>High half</th><td>" + hh.win + "</td><td>" + hh.tie + "</td><td>" + hh.lose() + "</td><td rowspan=2>" + hh.count + "</td></tr>" +
@@ -356,58 +364,59 @@
 			var v3 = handrow.find(".value");
 			v3.html(houts + louts + exs);
 			// if (hs.outs.length + ls.outs.length > 0) {
-			// 	v3.attr('title', "high outs = " + hs.outs + "<br>low outs = " + ls.outs);
-			// }
-			
-			// add data for hover
-			handrow.data("hle", hle);
-		}
-	}
-	
-	function createDeck () {
-		var dt = $("#deck").get(0);
-		var deck = eq.deck();
-		for (var n = 0; n < deck.length; n++) {
-			var c = deck[n];
-			if (n % 13 === 0) {
-				var tr = dt.insertRow(-1);
+				// 	v3.attr('title', "high outs = " + hs.outs + "<br>low outs = " + ls.outs);
+				// }
+				
+				// add data for hover
+				handrow.data("hle", hle);
 			}
-			var td = tr.insertCell(-1);
-			$(td).draggable({ helper: "clone" });
-			$(td).click(function(e) {
-				decktdclicked(e.currentTarget);
+		}
+		
+		function createDeck () {
+			var dt = $("#deck").get(0);
+			var deck = eq.deck();
+			for (var n = 0; n < deck.length; n++) {
+				var c = deck[n];
+				if (n % 13 === 0) {
+					var tr = dt.insertRow(-1);
+				}
+				var td = tr.insertCell(-1);
+				$(td).draggable({ helper: "clone" });
+				$(td).click(function(e) {
+					decktdclicked(e.currentTarget);
+				});
+				
+				setcard($(td), c);
+				$(td).addClass("deck card");
+			}
+		}
+		
+		/** init ... */
+		$(function() {
+			$(document).tooltip({
+				track: true,
+				content: function() { return $(this).attr('title'); }
 			});
 			
-			setcard($(td), c);
-			$(td).addClass("deck card");
-		}
-	}
-	
-	/** init ... */
-	$(function() {
-		$(document).tooltip({
-			track: true,
-			content: function() { return $(this).attr('title'); }
+			createDeck();
+			
+			window.onerror = function(e) {
+				alert("error: " + e);
+			};
+			
+			// transform the button elements
+			$("button").button();
+			$("#random").click(randomAction);
+			$("#calc").click(calcAction);
+			$("#clear").click(clearAction);
+			
+			var gid = window.sessionStorage.getItem('game') || 'holdem';
+			$("#game").val(gid).selectmenu({
+				change: gameAction,
+				create: gameAction
+			});
+			// need to call selectmenu("refresh") to update ui
 		});
 		
-		createDeck();
-		
-		window.onerror = function(e) {
-			alert("error: " + e);
-		};
-		
-		// transform the button elements
-		$("button").button();
-		$("#random").click(randomAction);
-		$("#calc").click(calcAction);
-		$("#clear").click(clearAction);
-		
-		var gid = window.sessionStorage.getItem('game') || 'holdem';
-		$("#game").val(gid).selectmenu({
-			change: gameAction,
-			create: gameAction
-		});
-		// need to call selectmenu("refresh") to update ui
-	});
+	})();
 	
-})();
