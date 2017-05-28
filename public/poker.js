@@ -216,11 +216,23 @@
 		var i = handtds.index(htd);
 		handtds.eq((i+1)%handtds.length).addClass("current");
 	}
+
+	function suitClass (c) {
+		switch (c.substring(1,2)) {
+			case "c": return "club";
+			case "d": return "diamond";
+			case "h": return "heart";
+			case "s": return "spade";
+			default: throw "c=" + c;
+		}
+	}
 	
 	/** set or clear card on jquery object */
 	function setCard (td, c) {
 		if (c) {
-			td.html("<span class='" + c.substring(1,2) + "'>" + eq.formatCard(c) + "</span>");
+			td.removeClass("club heart diamond spade");
+			td.addClass(suitClass(c));
+			td.html(eq.formatCard(c));
 			td.data("card", c);
 		} else {
 			td.empty();
