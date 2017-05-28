@@ -541,12 +541,15 @@ var eq = (function(){
 		var hh = this.highhalf;
 		var lh = this.lowhalf;
 		var c = h.count+(hh?hh.count:0);
+		// weight of high only (0 to 1)
 		var hweight = h.count/c;
 		var w = h.win+(hh?(hh.win+lh.win)/2:0);
 		var t = h.tie+(hh?(hh.tie+lh.tie)/2:0);
 		var l = h.lose()+(hh?(hh.lose()+lh.lose())/2:0);
-		var we = (h.count>0?(hweight*(h.win/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.win/(hh.count*2))+(lh.win/(lh.count*2)))):0);
-		var te = (h.count>0?(hweight*(h.tie/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.tie/(hh.count*2))+(lh.tie/(lh.count*2)))):0);
+		// var we = (h.count>0?(hweight*(h.win/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.win/(hh.count*2))+(lh.win/(lh.count*2)))):0);
+		// var te = (h.count>0?(hweight*(h.tie/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.tie/(hh.count*2))+(lh.tie/(lh.count*2)))):0);
+		var we = (hweight*h.we()) + ((1-hweight)*(hh ? (hh.we() + lh.we()) / 2 : 0));
+		var te = (hweight*h.te()) + ((1-hweight)*(hh ? (hh.te() + lh.te()) / 2 : 0));
 		return {
 			win: w, tie: t, lose: l, count: c, wineq: we, tieeq: te
 		};
@@ -556,10 +559,23 @@ var eq = (function(){
 		this.count = 0;
 		this.win = 0;
 		this.tie = 0;
+		this.tiewith = 0;
 	}
 	
 	Equity.prototype.lose = function () {
 		return this.count-this.win-this.tie;
+	}
+
+	Equity.prototype.we = function () {
+		return this.count > 0 ? (this.win / this.count) : 0;
+	}
+
+	Equity.prototype.te = function () {
+		// t=50 n=200 tw=100 = 12.5%
+		// t=50 n=100 tw=100 = 25%
+		// t=50 n=100 tw=150 = 16.6%
+		// (t/tw)*(t/n) = t^2/(tw*n)
+		return this.tie > 0 ? (this.tie*this.tie) / (this.tiewith*this.count) : 0;
 	}
 	
 	/** summary of high/low value */
@@ -704,6 +720,7 @@ var eq = (function(){
 						xe.win++;
 					} else {
 						xe.tie++;
+						xe.tiewith+=hmaxcount;
 					}
 					var r = rank(hmax);
 					var rc = hle.highsum.winranks[r] || 0;
@@ -716,6 +733,7 @@ var eq = (function(){
 							hle.lowhalf.win++;
 						} else {
 							hle.lowhalf.tie++;
+							hle.lowhalf.tiewith += lmaxcount;
 						}
 					}
 					// don't bother with winranks for low

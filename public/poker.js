@@ -347,13 +347,13 @@
 			var t = hle.total();
 			
 			var title1 = "<table>" +
-			"<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>" +
-			"<tr><th>High only</th><td>" + h.win + "</td><td>" + h.tie + "</td><td>" + h.lose() + "</td><td>" + h.count + "</td></tr>";
+			"<tr><th/><th>Win</th><th>Tie</th><th>TieWith</th><th>Lose</th><th>Count</th></tr>" +
+			"<tr><th>High only</th><td>" + h.win + "</td><td>" + h.tie + "</td><td>" + h.tiewith + "</td><td>" + h.lose() + "</td><td>" + h.count + "</td></tr>";
 			if (hh) {
 				title1 +=
-				"<tr><th>High half</th><td>" + hh.win + "</td><td>" + hh.tie + "</td><td>" + hh.lose() + "</td><td rowspan=2>" + hh.count + "</td></tr>" +
-				"<tr><th>Low half</th><td>" + lh.win + "</td><td>" + lh.tie + "</td><td>" + lh.lose() + "</td></tr>" +
-				"<tr><th>Total</th><td>" + t.win + "</td><td>" + t.tie + "</td><td>" + t.lose + "</td><td>" + t.count + "</td></tr>"
+				"<tr><th>High half</th><td>" + hh.win + "</td><td>" + hh.tie + "</td><td>" + hh.tiewith + "</td><td>" + hh.lose() + "</td><td rowspan=2>" + hh.count + "</td></tr>" +
+				"<tr><th>Low half</th><td>" + lh.win + "</td><td>" + lh.tie + "</td><td>" + lh.tiewith + "</td><td>" + lh.lose() + "</td></tr>" +
+				"<tr><th>Total</th><td>" + t.win + "</td><td colspan=2>" + t.tie + "</td><td>" + t.lose + "</td><td>" + t.count + "</td></tr>"
 			}
 			title1 += "</table>";
 			
