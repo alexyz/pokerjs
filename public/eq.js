@@ -11,7 +11,7 @@ var eq = (function(){
 	// 5 = most significant card (if any) ... 1 = least significant card
 	// akqjt98765432a ->
 	// edcba987654321
-
+	
 	var cardre = /^[1-9a-e][cdhs]$/;
 	
 	var deckArr = Object.freeze([
@@ -262,7 +262,7 @@ var eq = (function(){
 	function formatCard (c) {
 		return faces[faceValue(c[0], true)] + suits[c[1]];
 	}
-
+	
 	/** convert low value to high value */
 	function toHigh (v) {
 		if (v > ranks.ZZ) {
@@ -520,23 +520,46 @@ var eq = (function(){
 	};
 	
 	/** object containing high and low equities and summaries */
-	function HLEquity (hand) {
+	function HLEquity (hand, hl) {
 		if (!hand) throw "hlequity: no hand";
 		this.hand = hand;
 		this.high = new Equity();
-		this.highhalf = new Equity();
-		this.lowhalf = new Equity();
+		this.highsum = new Sum();
+		if (hl) {
+			this.highhalf = new Equity();
+			this.lowhalf = new Equity();
+			this.lowsum = new Sum();
+		}
 		this.exact = null;
 		// cards remaining in deck
 		this.rem = 0;
-		this.highsum = new Sum();
-		this.lowsum = new Sum();
+	}
+	
+	/** return total won/tie/lose count (maybe fractional), total count (not fractional), win equity (0-1), tie equity */
+	HLEquity.prototype.total = function () {
+		var h = this.high;
+		var hh = this.highhalf;
+		var lh = this.lowhalf;
+		var c = h.count+(hh?hh.count:0);
+		var hweight = h.count/c;
+		var w = h.win+(hh?(hh.win+lh.win)/2:0);
+		var t = h.tie+(hh?(hh.tie+lh.tie)/2:0);
+		var l = h.lose()+(hh?(hh.lose()+lh.lose())/2:0);
+		var we = (h.count>0?(hweight*(h.win/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.win/(hh.count*2))+(lh.win/(lh.count*2)))):0);
+		var te = (h.count>0?(hweight*(h.tie/h.count)):0) + (hh&&hh.count>0?((1-hweight)*((hh.tie/(hh.count*2))+(lh.tie/(lh.count*2)))):0);
+		return {
+			win: w, tie: t, lose: l, count: c, wineq: we, tieeq: te
+		};
 	}
 	
 	function Equity () {
 		this.count = 0;
 		this.win = 0;
 		this.tie = 0;
+	}
+	
+	Equity.prototype.lose = function () {
+		return this.count-this.win-this.tie;
 	}
 	
 	/** summary of high/low value */
@@ -557,7 +580,7 @@ var eq = (function(){
 		// get current values, create equity objects
 		var hmax = 0, lmax = 0;
 		for (var n = 0; n < hands.length; n++) {
-			var hle = new HLEquity(hands[n]);
+			var hle = new HLEquity(hands[n], !!lvaluef);
 			hle.exact = dealer.exact;
 			hle.rem = dealer.deck ? dealer.deck.length : 0;
 			var hv = hvaluef(board, hands[n]);
@@ -584,9 +607,7 @@ var eq = (function(){
 			if (hle.highsum.current === hmax) {
 				hle.highsum.best = true;
 			}
-			console.log("hand=" + hands[n] + " lcurrent=" + hle.lowsum.current + " lmax=" + lmax);
-			if (hle.lowsum.current && hle.lowsum.current === lmax) {
-				console.log("it's best");
+			if (lvaluef && hle.lowsum.current && hle.lowsum.current === lmax) {
 				hle.lowsum.best = true;
 			}
 		}
@@ -625,7 +646,7 @@ var eq = (function(){
 				if (!hle.highsum.best && hvals[n] === hmax) {
 					hle.highsum.outs.push(c);
 				}
-				if (!hle.lowsum.best && lvals[n] && lvals[n] === lmax) {
+				if (lvaluef && !hle.lowsum.best && lvals[n] && lvals[n] === lmax) {
 					hle.lowsum.outs.push(c);
 				}
 			}
@@ -648,30 +669,31 @@ var eq = (function(){
 			for (var n = 0; n < hands.length; n++) {
 				var hv = hvaluef(board, hands[n]);
 				hvals[n] = hv;
-				if (hv === hmax) {
-					hmaxcount++;
-				} else if (hv > hmax) {
+				if (hv > hmax) {
 					hmaxcount = 1;
 					hmax = hv;
+				} else if (hv === hmax) {
+					hmaxcount++;
 				}
 				if (lvaluef) {
 					var lv = lvaluef(board, hands[n]);
 					lvals[n] = lv;
-					if (lv === lmax) {
-						lmaxcount++;
-					} else if (lv > lmax) {
-						lmaxcount = 1;
-						lmax = lv;
+					if (lv > 0) {
+						if (lv > lmax) {
+							lmaxcount = 1;
+							lmax = lv;
+						} else if (lv === lmax) {
+							lmaxcount++;
+						}
 					}
 				}
 			}
 			
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
-				// if anyone got low, update the high half only
+				// if anyone got low, update highhalf/lowhalf only, otherwise high only
 				var hle = hleqs[n];
 				var xe = lmaxcount === 0 ? hle.high : hle.highhalf;
-				var le = hle.lowhalf;
 				
 				if (hvals[n] === hmax) {
 					if (hmaxcount === 1) {
@@ -687,13 +709,13 @@ var eq = (function(){
 				if (lmaxcount > 0) {
 					if (lvals[n] === lmax) {
 						if (lmaxcount === 1) {
-							le.win++;
+							hle.lowhalf.win++;
 						} else {
-							le.tie++;
+							hle.lowhalf.tie++;
 						}
 					}
 					// don't bother with winranks for low
-					le.count++;
+					hle.lowhalf.count++;
 				}
 				
 				xe.count++;
@@ -785,7 +807,7 @@ var eq = (function(){
 	function studLow8Value (board, hand) {
 		return studValueImpl(board, hand, afLow8Value);
 	}
-
+	
 	function razzValue (board, hand) {
 		return studValueImpl(board, hand, afLowValue);
 	}
@@ -933,6 +955,13 @@ var eq = (function(){
 			}
 		}
 	});
+	
+	(function(){
+		var h = ["es", "ds", "cs", "2s"];
+		var b = ["bh", "ah", "3h"];
+		var v = omahaLowValue(b, h);
+		console.log("v=" + v.toString(16) + " -> " + valueDesc(v));
+	})();
 	
 	// exports
 	

@@ -88,7 +88,7 @@
 			var hle = $(this).data("hle");
 			$(".deck").each(function(){
 				var t = $(this);
-				if (hle && (hle.highsum.outs.indexOf(t.data("card")) >= 0 || hle.lowsum.outs.indexOf(t.data("card")) >= 0)) {
+				if (hle && (hle.highsum.outs.indexOf(t.data("card")) >= 0 || (hle.lowsum && hle.lowsum.outs.indexOf(t.data("card")) >= 0))) {
 					t.addClass("out");
 				}
 			});
@@ -307,58 +307,57 @@
 		for (var n = 0; n < hlequities.length; n++) {
 			var hle = hlequities[n];
 			var handrow = $(".handrow").filter(rowFilter(hle.hand));
-			var xe = hle.high;
-			var he = hle.highhalf;
-			var le = hle.lowhalf;
+			var h = hle.high;
 			var hs = hle.highsum;
+			var hh = hle.highhalf;
+			var lh = hle.lowhalf;
 			var ls = hle.lowsum;
-			// he.count==le.count
+			var t = hle.total();
+
+			var title1 = "<table>" +
+				"<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>" +
+				"<tr><th>High only</th><td>" + h.win + "</td><td>" + h.tie + "</td><td>" + h.lose() + "</td><td>" + h.count + "</td></tr>";
+			if (hh) {
+				title1 +=
+				"<tr><th>High half</th><td>" + hh.win + "</td><td>" + hh.tie + "</td><td>" + hh.lose() + "</td><td rowspan=2>" + hh.count + "</td></tr>" +
+				"<tr><th>Low half</th><td>" + lh.win + "</td><td>" + lh.tie + "</td><td>" + lh.lose() + "</td></tr>" +
+				"<tr><th>Total</th><td>" + t.win + "</td><td>" + t.tie + "</td><td>" + t.lose + "</td><td>" + t.count + "</td></tr>"
+			}
+			title1 += "</table>";
 			
-			var xweight = xe.count/(xe.count+he.count);
-			console.log("xweight=" + xweight + " xewin=" + (xe.win/xe.count) + " hewin=" + (he.win/(he.count*2)) + " lewin=" + (le.win/(le.count*2)));
-			var win = (xe.count>0?(xweight*(xe.win/xe.count)):0) + (he.count>0?((1-xweight)*((he.win/(he.count*2))+(le.win/(le.count*2)))):0);
-			var tie = (xe.count>0?(xweight*(xe.tie/xe.count)):0) + (he.count>0?((1-xweight)*((he.tie/(he.count*2))+(le.tie/(le.count*2)))):0);
-			var wins = (100*win).toFixed(0)+"%";
-			var ties = (100*tie).toFixed(0)+"%";
-			var besteq = (win+tie) >= (1/hlequities.length);
-			
+			var besteq = (t.wineq+t.tieeq) >= (1/hlequities.length);
 			var v1 = handrow.find(".win");
-			v1.html(wins + (tie > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
-			var xelose = (xe.count-xe.win-xe.tie);
-			var helose = (he.count-he.win-he.tie);
-			var lelose = (le.count-le.win-le.tie);
-			var t = "<table>"
-			+ "<tr><th/><th>Win</th><th>Tie</th><th>Lose</th><th>Total</th></tr>"
-			+ "<tr><th>High only</th><td>" + xe.win + "</td><td>" + xe.tie + "</td><td>" + xelose + "</td><td>" + xe.count + "</td></tr>"
-			+ "<tr><th>High half</th><td>" + he.win + "</td><td>" + he.tie + "</td><td>" + helose + "</td><td>" + he.count + "</td></tr>"
-			+ "<tr><th>Low half</th><td>" + le.win + "</td><td>" + le.tie + "</td><td>" + lelose + "</td><td>" + le.count + "</td></tr>"
-			+ "<tr><th>Total</th><td>" + (xe.win+(he.win+le.win)/2) + "</td><td>" + (xe.tie+(he.tie+le.tie)/2) + "</td><td>" + (xelose+(helose+lelose)/2) + "</td><td>" + (xe.count+le.count) + "</td></tr>"
-			+ "</table>";
-			v1.attr('title', t);
+			var wins = (100*t.wineq).toFixed(0)+"%";
+			var ties = (100*t.tieeq).toFixed(0)+"%";
+			v1.html(wins + (t.tieeq > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			v1.attr('title', title1);
 			
 			var v2 = handrow.find(".rank");
 			var rs = eq.valueDesc(hs.current) + (hs.best ? " \u{1F600} " : "");
-			if (le.count > 0) {
+			if (ls && ls.count > 0) {
+				// really needs to say no low if any low
+				// but really eq function should not creates lows if there arn't any
 				rs = rs + "<br>" + eq.valueDesc(ls.current) + (ls.best ? " \u{1F600} " : "");
 			}
 			v2.html(rs);
 			
 			var t2 = "<table><tr><th>Win/Tie Rank</th><th>Percent</th></tr>";
 			for (var k in hs.winranks) {
-				t2 = t2 + "<tr><td>" + eq.rankname(k) + "</td><td>" + ((hs.winranks[k]*100)/(xe.win+xe.tie+he.win+he.tie)).toFixed(0) + "%</td></tr>";
+				var c = h.win+h.tie+(hh?hh.win+hh.tie:0);
+				t2 = t2 + "<tr><td>" + eq.rankname(k) + "</td><td>" + ((hs.winranks[k]*100)/c).toFixed(0) + "%</td></tr>";
 			}
 			t2 = t2 + "</table>";
 			v2.attr('title', t2);
 			
-			var houts = ((hs.outs.length > 0) ? " houts=" + hs.outs.length + "/" + hle.rem : "");
-			var louts = ((ls.outs.length > 0) ? " louts=" + ls.outs.length + "/" + hle.rem : "");
+			var houts = (hs.outs.length > 0) ? "High Outs " + hs.outs.length + "/" + hle.rem : "";
+			var louts = ls && (ls.outs.length > 0) ? " Low Outs " + ls.outs.length + "/" + hle.rem : "";
 			var exs = hle.exact ? " exact" : " estimated";
 			
 			var v3 = handrow.find(".value");
 			v3.html(houts + louts + exs);
-			if (hs.outs.length + ls.outs.length > 0) {
-				v3.attr('title', "high outs = " + hs.outs + "<br>low outs = " + ls.outs);
-			}
+			// if (hs.outs.length + ls.outs.length > 0) {
+			// 	v3.attr('title', "high outs = " + hs.outs + "<br>low outs = " + ls.outs);
+			// }
 			
 			// add data for hover
 			handrow.data("hle", hle);
