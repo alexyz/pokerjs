@@ -15,10 +15,10 @@ var eq = (function(){
 	var cardre = /^[1-9a-e][cdhs]$/;
 	
 	var deckArr = Object.freeze([
-	"ec", "dc", "cc", "bc", "ac", "9c", "8c", "7c", "6c", "5c", "4c", "3c", "2c",
-	"ed", "dd", "cd", "bd", "ad", "9d", "8d", "7d", "6d", "5d", "4d", "3d", "2d",
-	"eh", "dh", "ch", "bh", "ah", "9h", "8h", "7h", "6h", "5h", "4h", "3h", "2h",
-	"es", "ds", "cs", "bs", "as", "9s", "8s", "7s", "6s", "5s", "4s", "3s", "2s",
+	"2c", "3c", "4c", "5c", "6c", "7c", "8c", "9c", "ac", "bc", "cc", "dc", "ec",
+	"2d", "3d", "4d", "5d", "6d", "7d", "8d", "9d", "ad", "bd", "cd", "dd", "ed",
+	"2h", "3h", "4h", "5h", "6h", "7h", "8h", "9h", "ah", "bh", "ch", "dh", "eh",
+	"2s", "3s", "4s", "5s", "6s", "7s", "8s", "9s", "as", "bs", "cs", "ds", "es",
 	]);
 	
 	/** high card value of straight */
@@ -250,7 +250,7 @@ var eq = (function(){
 	}
 	
 	/** return human readable string rep of hand */
-	function formatHand (h) {
+	function formatCards (h) {
 		var s = "";
 		for (var n = 0; n < h.length; n++) {
 			s += formatCard(h[n]);
@@ -849,24 +849,33 @@ var eq = (function(){
 		}
 		return max;
 	}
+
+	var gametypes = Object.freeze({
+		HE: 'he',
+		ST: 'st',
+		DR: 'dr'
+	});
 	
 	var games = Object.freeze({
 		holdem: {
-			type: 'he', 
+			name: "Hold'em",
+			type: gametypes.HE, 
 			handMin: 2, 
 			handMax: 2,
 			equityFunc: holdemEquity, 
 			valueFunc: holdemValue
 		},
-		omaha: { 
-			type: 'he', 
+		omaha: {
+			name: "Omaha",
+			type: gametypes.HE, 
 			handMin: 2, 
 			handMax: 4, 
 			equityFunc: holdemEquity, 
 			valueFunc: omahaValue
 		},
 		omahahilo: {
-			type: 'he', 
+			name: "Omaha Hi/Lo",
+			type: gametypes.HE, 
 			handMin: 2, 
 			handMax: 4, 
 			equityFunc: holdemEquity, 
@@ -874,28 +883,32 @@ var eq = (function(){
 			lowValueFunc: omahaLowValue
 		},
 		draw: {
-			type: 'dr',
+			name: "Draw",
+			type: gametypes.DR,
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: drawValue
 		},
 		lowdraw: {
-			type: 'dr',
+			name: "2-7 Low Draw",
+			type: gametypes.DR,
 			handMin: 1, 
 			handMax: 5, 
 			equityFunc: drawEquity, 
 			valueFunc: lowDrawValue
 		},
 		stud: {
-			type: 'st',
+			name: "Stud",
+			type: gametypes.ST,
 			handMin: 2, 
 			handMax: 7, 
 			equityFunc: drawEquity, 
 			valueFunc: studValue
 		},
 		studhilo: {
-			type: 'st',
+			name: "Stud Hi/Lo",
+			type: gametypes.ST,
 			handMin: 2, 
 			handMax: 7, 
 			equityFunc: drawEquity, 
@@ -903,7 +916,8 @@ var eq = (function(){
 			lowValueFunc: studLow8Value
 		},
 		razz: {
-			type: 'st',
+			name: "Razz",
+			type: gametypes.ST,
 			handMin: 2, 
 			handMax: 7, 
 			equityFunc: drawEquity, 
@@ -940,7 +954,7 @@ var eq = (function(){
 				var v3s = (" " + v3.toString(16)).slice(-6);
 				var v1d = eq.valueDesc(v1);
 				var v3d = eq.valueDesc(v3);
-				console.log(eq.formatHand(h) + " hv = " + v1d + " ds = " + v3d);
+				console.log(eq.formatCards(h) + " hv = " + v1d + " ds = " + v3d);
 			}
 		}
 		rs.length = 0; // 54, 65, 64, 76, 75, 74, 87, 86, 85, 84
@@ -953,7 +967,7 @@ var eq = (function(){
 				if (rs.indexOf(x) < 0) {
 					var v1d = eq.valueDesc(v1);
 					var v2d = eq.valueDesc(v2);
-					console.log(eq.formatHand(h) + " hv = " + v2d + " af = " + v1d);
+					console.log(eq.formatCards(h) + " hv = " + v2d + " af = " + v1d);
 					rs.push(x);
 				}
 			}
@@ -971,6 +985,7 @@ var eq = (function(){
 	
 	var m = {};
 	m.formatCard = formatCard;
+	m.formatCards = formatCards;
 	m.valueDesc = valueDesc;
 	m.rank = rank;
 	m.deck = deck;

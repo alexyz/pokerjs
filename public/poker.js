@@ -45,7 +45,7 @@
 			// just clear eq calc
 			clearInfoAction();
 		}
-		
+
 		prevGame = g;
 	}
 	
@@ -260,6 +260,7 @@
 		$("#hands").find(".info").each(function(i,e) {
 			$(e).empty().removeAttr('title');
 		});
+		$("#hands").removeData('export');
 	}
 	
 	function randomAction () {
@@ -299,21 +300,28 @@
 			}
 		}
 	}
+
+	/** format number as percentage to 0 dp */
+	function pc (n) {
+		return (100*n).toFixed(0)+"%";
+	}
 	
 	function calcAction () {
 		console.log("calc action");
-		var hs = getcards();
-		console.log("hs=" + JSON.stringify(hs));
-		var game = getgame();
-		console.log("g=" + JSON.stringify(game));
-		var hlequities = game.equityFunc(hs.board, hs.hands, hs.blockers, game);
-		console.log("o=" + JSON.stringify(hlequities));
-		
 		clearInfoAction();
 		$(".deck").removeClass("out");
+
+		var cards = getcards();
+		console.log("cards=" + JSON.stringify(cards));
+		var game = getgame();
+		console.log("game=" + JSON.stringify(game));
+		var equities = game.equityFunc(cards.board, cards.hands, cards.blockers, game);
+		console.log("eqs=" + JSON.stringify(equities));
+
+		$("#hands").data('export', { cards: cards, equities: equities, game: game });
 		
-		for (var n = 0; n < hlequities.length; n++) {
-			var hle = hlequities[n];
+		for (var n = 0; n < equities.length; n++) {
+			var hle = equities[n];
 			var handrow = $(".handrow").filter(rowFilter(hle.hand));
 			var h = hle.high;
 			var hs = hle.highsum;
@@ -333,11 +341,9 @@
 			}
 			title1 += "</table>";
 			
-			var besteq = (t.wineq+t.tieeq) >= (1/hlequities.length);
+			var besteq = (t.wineq+t.tieeq) >= (1/equities.length);
 			var v1 = handrow.find(".win");
-			var wins = (100*t.wineq).toFixed(0)+"%";
-			var ties = (100*t.tieeq).toFixed(0)+"%";
-			v1.html(wins + (t.tieeq > 0 ? "/" + ties : "") + (besteq ? " \u{1F600} " : ""));
+			v1.html(pc(t.wineq) + (t.tieeq > 0 ? "/" + pc(t.tieeq) : "") + (besteq ? " \u{1F600} " : ""));
 			v1.attr('title', title1);
 			
 			var v2 = handrow.find(".rank");
@@ -390,6 +396,39 @@
 				$(td).addClass("deck card");
 			}
 		}
+
+		function exportAction () {
+			var exp = $("#hands").data("export");
+			if (exp) {
+				var c = exp.cards;
+				var e = exp.equities;
+				var g = exp.game;
+				var o = {};
+				o.Game = g.name;
+				o.Board = eq.formatCards(c.board);
+				for (var n = 0; n < e.length; n++) {
+					var t = e[n].total();
+					var a = [];
+					a.push(eq.formatCards(e[n].hand));
+					a.push(pc(t.wineq));
+					if (t.tieeq > 0) {
+						a.push(pc(t.tieeq));
+					}
+					o["Hand" + (n+1)] = a;
+				}
+				window.prompt("Export", JSON.stringify(o,null,1).replace(/[ \n\t]+/g, " "));
+			}
+		}
+
+		function importAction () {
+			var s = window.prompt("Export", "").trim();
+			if (s) {
+				var o = JSON.parse(s);
+				// TODO
+				// select game
+				// pop boards, cards
+			}
+		}
 		
 		/** init ... */
 		$(function() {
@@ -409,6 +448,8 @@
 			$("#random").click(randomAction);
 			$("#calc").click(calcAction);
 			$("#clear").click(clearAction);
+			$("#export").click(exportAction);
+			$("#import").click(importAction);
 			
 			var gid = window.sessionStorage.getItem('game') || 'holdem';
 			$("#game").val(gid).selectmenu({
