@@ -134,9 +134,9 @@
 				if ((isboard && h.length === 0) || h.length >= mins) {
 					if (hands !== null) {
 						if (isboard) {
-							hands.board = h;
+							hands.board = Object.freeze(h);
 						} else {
-							hands.hands.push(h);
+							hands.hands.push(Object.freeze(h));
 						}
 					}
 				} else {
@@ -145,7 +145,7 @@
 				}
 			}
 		});
-		return hands;
+		return Object.freeze(hands);
 	}
 	
 	/** filter that selects table cells by card */

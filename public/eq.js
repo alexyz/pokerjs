@@ -612,7 +612,7 @@ var eq = (function(){
 			}
 		}
 		
-		var b = board ? board.slice(0) : [];
+		var outsboard = board ? board.slice(0) : [];
 		var hvals = [], lvals = [];
 		
 		// get the outs for next street only
@@ -620,22 +620,26 @@ var eq = (function(){
 		// he street 3,4 has outs
 		// stud streets 4,5,6 has outs (not last street and 1 more card makes at least 5)
 		// draw has outs if 4 cards in hand
+		// XXX board outs don't work for razz
+		// need to add out seperately to each hand
+		// can only show if improved against opp current hand not future hand
+		// nextout() needs to iterate over hands and deck not just deck
 		while (dealer.hasouts && dealer.hasouts()) {
 			// apply out to board
-			var c = dealer.nextout(b);
+			var c = dealer.nextout(outsboard);
 			
 			// get new value
-			var hmax = null, lmax = null;
+			var hmax = 0, lmax = 0;
 			for (var n = 0; n < hands.length; n++) {
-				var hv = hvaluef(b, hands[n]);
+				var hv = hvaluef(outsboard, hands[n]);
 				hvals[n] = hv;
-				if (!hmax || hv > hmax) {
+				if (hv > hmax) {
 					hmax = hv;
 				}
 				if (lvaluef) {
-					var lv = lvaluef(b, hands[n]);
+					var lv = lvaluef(outsboard, hands[n]);
 					lvals[n] = lv;
-					if (!lmax || lv > lmax) {
+					if (lv > lmax) {
 						lmax = lv;
 					}
 				}
@@ -688,7 +692,7 @@ var eq = (function(){
 					}
 				}
 			}
-			
+
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update highhalf/lowhalf only, otherwise high only
