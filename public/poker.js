@@ -6,18 +6,18 @@
 
 	var prevGame;
 	
-	function getgameid() {
+	function getGameId() {
 		return $("#game").find(":selected").val();
 	}
 	
-	function getgame () {
-		return eq.games[getgameid()];
+	function getGame () {
+		return eq.games[getGameId()];
 	}
 	
 	function gameAction (e, ui) {
 		console.log("game selected");
-		var id = getgameid();
-		var g = getgame();
+		var id = getGameId();
+		var g = getGame();
 		
 		window.sessionStorage.setItem('game', id);
 		
@@ -39,7 +39,7 @@
 			}
 			
 			// select first hand cell...
-			$(ht).find(".hand").first().addClass("current");
+			first();
 
 		} else {
 			// just clear eq calc
@@ -50,7 +50,7 @@
 	}
 	
 	/** card dragged from deck to hand */
-	function handcarddropped (e, ui) {
+	function handCardDropped (e, ui) {
 		var existingcard = $(this).data("card");
 		if (existingcard) {
 			// deselect existing card in deck
@@ -59,9 +59,9 @@
 		
 		var draggedcard = ui.draggable.data("card");
 		// clear target card if already used elsewhere
-		setcard($(".hand").filter(cardFilter(draggedcard)), null);
+		setCard($(".hand").filter(cardFilter(draggedcard)), null);
 		// set card in hand
-		setcard($(this), draggedcard);
+		setCard($(this), draggedcard);
 		// select card in deck
 		$(".deck").filter(cardFilter(draggedcard)).addClass("selected");
 		// update current
@@ -77,10 +77,10 @@
 		for (var n = 0; n < maxs; n++) {
 			var td = tr.insertCell(-1);
 			$(td).addClass("hand card");
-			$(td).click(handtdclicked);
-			$(td).dblclick(handtdclicked2);
+			$(td).click(handTdClicked);
+			$(td).dblclick(handTdDoubleClicked);
 			$(td).droppable({
-				drop: handcarddropped
+				drop: handCardDropped
 			});
 		}
 		if (!isboard) {
@@ -122,7 +122,7 @@
 		};
 	}
 	
-	function getcards () {
+	function getCards () {
 		var hands = { board: [], hands: [], blockers: [] };
 		$(".handrow").each(function(i,tr) {
 			$(tr).removeClass("error"); // XXX
@@ -131,7 +131,7 @@
 			var isboard = $(tr).data("isb");
 			var h = [];
 			$(tr).find(".hand").each(function(i,e){
-				var c = getcard(e);
+				var c = $(e).data("card")
 				if (c) {
 					h.push(c);
 				}
@@ -163,7 +163,7 @@
 		};
 	}
 	
-	function decktdclicked (dtd) {
+	function deckTdClicked (dtd) {
 		console.log("decktdclicked " + dtd.outerHTML);
 		var c = $(dtd).data("card");
 		console.log("card is " + c);
@@ -176,7 +176,7 @@
 			var handtd = $(".hand").filter(cardFilter(c));
 			//handtd.removeData("card");
 			//handtd.html("");
-			setcard(handtd, null);
+			setCard(handtd, null);
 			
 			// select deleted hand card
 			$(".current").removeClass("current");
@@ -197,11 +197,17 @@
 			$(dtd).addClass("selected");
 			
 			// update hand card
-			setcard(htd, c);
+			setCard(htd, c);
 			
 			// select next hand card
 			next(htd);
 		}
+	}
+
+	/** select first hand card */
+	function first () {
+		$(".hand").removeClass("current");
+		$("#hands .hand").first().addClass("current");
 	}
 	
 	/** advance current hand card */
@@ -212,7 +218,7 @@
 	}
 	
 	/** set or clear card on jquery object */
-	function setcard (td, c) {
+	function setCard (td, c) {
 		if (c) {
 			td.html("<span class='" + c.substring(1,2) + "'>" + eq.formatCard(c) + "</span>");
 			td.data("card", c);
@@ -222,11 +228,7 @@
 		}
 	}
 	
-	function getcard (td) {
-		return $(td).data("card");
-	}
-	
-	function handtdclicked (e) {
+	function handTdClicked (e) {
 		var td = e.currentTarget;
 		console.log("handtdclicked " + td.outerHTML);
 		// deselect others
@@ -234,23 +236,25 @@
 		$(td).addClass("current");
 	}
 	
-	function handtdclicked2 (e) {
+	function handTdDoubleClicked (e) {
 		// update selection
-		handtdclicked(e);
+		handTdClicked(e);
 		// deselect deck card
 		var oc = $(e.currentTarget).data("card");
 		if (oc) {
 			$(".deck").filter(cardFilter(oc)).removeClass("selected");
 		}
 		// delete hand card
-		setcard($(e.currentTarget), null);
+		setCard($(e.currentTarget), null);
 	}
 	
 	function clearAction () {
 		$(".hand").each(function(i,e){
-			setcard($(e),null);
+			setCard($(e),null);
 		});
 		$(".deck").removeClass("selected");
+		// select first hand card
+		first();
 		clearInfoAction();
 	}
 	
@@ -267,14 +271,14 @@
 		clearAction();
 		var players = eq.randomInt(3) + 2;
 		var deck = eq.shuffle(eq.deck());
-		var g = getgame();
+		var g = getGame();
 		if (g.type == 'he') {
 			var street = eq.randomInt(4);
 			if (street > 0) {
 				var board = $("#board").find(".hand");
 				for (var n = 0; n < street + 2; n++) {
 					var card = deck.pop();
-					setcard(board.eq(n), card);
+					setCard(board.eq(n), card);
 					$(".deck").filter(cardFilter(card)).addClass("selected");
 				}
 			}
@@ -294,7 +298,7 @@
 			for (var n2 = 0; n2 < handlen; n2++) {
 				handrow.eq(n2).each(function() {
 					var c = deck.pop();
-					setcard($(this), c);
+					setCard($(this), c);
 					$(".deck").filter(cardFilter(c)).addClass("selected");
 				});
 			}
@@ -311,9 +315,9 @@
 		clearInfoAction();
 		$(".deck").removeClass("out");
 
-		var cards = getcards();
+		var cards = getCards();
 		console.log("cards=" + JSON.stringify(cards));
-		var game = getgame();
+		var game = getGame();
 		console.log("game=" + JSON.stringify(game));
 		var equities = game.equityFunc(cards.board, cards.hands, cards.blockers, game);
 		console.log("eqs=" + JSON.stringify(equities));
@@ -389,10 +393,10 @@
 				var td = tr.insertCell(-1);
 				$(td).draggable({ helper: "clone" });
 				$(td).click(function(e) {
-					decktdclicked(e.currentTarget);
+					deckTdClicked(e.currentTarget);
 				});
 				
-				setcard($(td), c);
+				setCard($(td), c);
 				$(td).addClass("deck card");
 			}
 		}
