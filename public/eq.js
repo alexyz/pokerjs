@@ -1,5 +1,5 @@
 /** equity functions */
-var eq = (function(){
+(function(){
 	
 	/** https://github.com/alexyz/pokerjs */
 	"use strict";
@@ -343,24 +343,60 @@ var eq = (function(){
 		console.log("draw/stud equity");
 		var boardmax = game.type == 'st' ? 1 : 0;
 		if (board.length > boardmax || hands.length < 2) throw "draw/stud equity board=" + board + " hands=" + hands;
-		var decka = remove(deck(), board, hands, blockers);
+		var deck2 = remove(deck(), board, hands, blockers);
 		var unknown = 0;
 		var min = 10;
 		for (var n = 0; n < hands.length; n++) {
 			unknown = unknown + (game.handMax - hands[n].length);
 			min = Math.min(hands[n].length, min);
 		}
-		// TODO u=1,2 exact draw
 		console.log("unknown=" + unknown + " min=" + min);
 		var dealer;
 		if (unknown === 0) {
 			dealer = new FixedBoard();
+		} else if (unknown <= 2) {
+			dealer = new KDraw(deck2, hands, game.handMax, unknown);
+			console.log("kdraw max=" + dealer.max);
 		} else {
 			// test outs if at least 1 unknown and all hands have at least 4 cards
-			dealer = new RandomDraw(decka, hands, 1000, game.handMax, min >= 4);
+			dealer = new RandomDraw(deck2, hands, 1000, game.handMax, min >= 4);
 		}
 		return equityImpl(board, hands, dealer, game.valueFunc, game.lowValueFunc);
 	}
+	
+	function KDraw (deck, hands, handlen, unknown) {
+		if (unknown <= 0 || deck.length < unknown) throw "kdraw";
+		this.deck = deck;
+		this.hands = hands;
+		this.handlen = handlen;
+		this.unknown = unknown;
+		this.max = C.bc(deck.length, unknown);
+		if (this.max <= 0) throw "kdraw d=" + deck.length + " u=" + unknown + " max=" + this.max;
+		this.n = 0;
+		this.a = [];
+		this.exact = true;
+	}
+	
+	KDraw.prototype.hasnext = function () {
+		return this.n < this.max;
+	};
+	
+	KDraw.prototype.next = function (board, hands) {
+		if (this.n < this.max) {
+			C.kc(this.unknown, this.n, this.a);
+			var i = 0;
+			for (var n = 0; n < this.hands.length; n++) {
+				for (var n2 = this.hands[n].length; n2 < this.handlen; n2++) {
+					hands[n][n2] = this.deck[this.a[i++]];
+				}
+			}
+			if (i !== this.unknown) throw "kdraw: i=" + i;
+			this.n++;
+			return true;
+		} else {
+			return false;
+		}
+	};
 	
 	function RandomDraw (deck, hands, max, handlen, outs) {
 		this.n = 0;
@@ -565,11 +601,11 @@ var eq = (function(){
 	Equity.prototype.lose = function () {
 		return this.count-this.win-this.tie;
 	}
-
+	
 	Equity.prototype.we = function () {
 		return this.count > 0 ? (this.win / this.count) : 0;
 	}
-
+	
 	Equity.prototype.te = function () {
 		// t=50 n=200 tw=100 = 12.5%
 		// t=50 n=100 tw=100 = 25%
@@ -708,7 +744,7 @@ var eq = (function(){
 					}
 				}
 			}
-
+			
 			// update each hand equity
 			for (var n = 0; n < hands.length; n++) {
 				// if anyone got low, update highhalf/lowhalf only, otherwise high only
@@ -867,7 +903,7 @@ var eq = (function(){
 		}
 		return max;
 	}
-
+	
 	var gametypes = Object.freeze({
 		HE: 'he',
 		ST: 'st',
@@ -1001,17 +1037,16 @@ var eq = (function(){
 	
 	// exports
 	
-	var m = {};
-	m.formatCard = formatCard;
-	m.formatCards = formatCards;
-	m.valueDesc = valueDesc;
-	m.rank = rank;
-	m.deck = deck;
-	m.shuffle = shuffle;
-	m.games = games;
-	m.randomInt = randomInt;
-	m.valueDesc = valueDesc;
-	m.rankname = rankname;
-	return Object.freeze(m);
+	window.eq = Object.freeze({
+		formatCard: formatCard,
+		formatCards: formatCards,
+		valueDesc: valueDesc,
+		rank: rank,
+		deck: deck,
+		shuffle: shuffle,
+		games: games,
+		randomInt: randomInt,
+		rankname: rankname
+	});
 	
 })();
